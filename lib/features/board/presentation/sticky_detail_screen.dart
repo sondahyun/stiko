@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/theme.dart';
+import '../../../core/title_dialog.dart';
 import '../../../data/local/database.dart';
 import '../application/board_providers.dart';
 import 'widgets/sticky_note_card.dart';
@@ -93,35 +94,11 @@ class StickyDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     Sticky sticky,
   ) async {
-    final TextEditingController controller =
-        TextEditingController(text: sticky.title);
-    final String? result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('제목 변경'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(
-            labelText: '제목',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (String v) => Navigator.of(ctx).pop(v.trim()),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('저장'),
-          ),
-        ],
-      ),
+    final String? result = await showTitleDialog(
+      context,
+      initial: sticky.title,
+      title: '제목 변경',
     );
-    controller.dispose();
     if (result != null) {
       await ref.read(stickyRepositoryProvider).setStickyTitle(sticky.id, result);
     }

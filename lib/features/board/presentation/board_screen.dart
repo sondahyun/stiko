@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/platform_utils.dart';
+import '../../../core/title_dialog.dart';
 import '../../../data/local/database.dart';
 import '../../sticky/application/sticky_window.dart';
 import '../../sticky/presentation/sticky_toolbar.dart';
@@ -116,37 +117,13 @@ class _AddStickyButton extends ConsumerWidget {
 }
 
 /// Asks for a sticky title. Returns null if cancelled.
-Future<String?> _promptTitle(BuildContext context) async {
-  final TextEditingController controller = TextEditingController();
-  final String? result = await showDialog<String>(
-    context: context,
-    builder: (BuildContext ctx) => AlertDialog(
-      title: const Text('새 스티커'),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        textInputAction: TextInputAction.done,
-        decoration: const InputDecoration(
-          labelText: '제목',
-          hintText: '예: 오늘 할 일',
-          border: OutlineInputBorder(),
-        ),
-        onSubmitted: (String v) => Navigator.of(ctx).pop(v.trim()),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-          child: const Text('만들기'),
-        ),
-      ],
-    ),
+Future<String?> _promptTitle(BuildContext context) {
+  return showTitleDialog(
+    context,
+    title: '새 스티커',
+    hint: '예: 오늘 할 일',
+    confirmLabel: '만들기',
   );
-  controller.dispose();
-  return result;
 }
 
 class _BoardBody extends ConsumerWidget {

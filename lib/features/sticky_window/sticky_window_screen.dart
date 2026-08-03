@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../app/theme.dart';
+import '../../core/title_dialog.dart';
 import '../../data/firestore_sticky_repository.dart';
 import '../../data/local/database.dart' show StickyWithTodos, Todo;
 
@@ -114,35 +115,8 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   }
 
   Future<void> _rename(String current) async {
-    final TextEditingController controller =
-        TextEditingController(text: current);
-    final String? result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('제목 변경'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(
-            labelText: '제목',
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (String v) => Navigator.of(ctx).pop(v.trim()),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('저장'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
+    final String? result =
+        await showTitleDialog(context, initial: current, title: '제목 변경');
     if (result != null) await _repo.setStickyTitle(widget.stickyId, result);
   }
 
