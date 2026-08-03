@@ -27,7 +27,9 @@ final widgetSyncProvider = Provider<void>((ref) {
     (AsyncValue<List<StickyWithTodos>>? prev,
         AsyncValue<List<StickyWithTodos>> next) {
       final List<StickyWithTodos>? board = next.valueOrNull;
-      if (board != null) WidgetService.sync(board);
+      if (board != null) {
+        WidgetService.sync(board, ref.read(stickyRepositoryProvider));
+      }
     },
     fireImmediately: true,
   );
