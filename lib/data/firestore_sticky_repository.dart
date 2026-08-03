@@ -32,6 +32,14 @@ class FirestoreStickyRepository implements StickyRepository {
         );
   }
 
+  /// Watches a single sticky, for a standalone sticky window.
+  Stream<StickyWithTodos?> watchSticky(String stickyId) {
+    return _stickies.doc(stickyId).snapshots().map(
+          (DocumentSnapshot<Map<String, dynamic>> doc) =>
+              doc.exists ? _toStickyWithTodos(doc) : null,
+        );
+  }
+
   @override
   Future<Sticky> addSticky({int colorIndex = 0}) async {
     final DateTime now = _clock();
@@ -135,9 +143,9 @@ class FirestoreStickyRepository implements StickyRepository {
   // Helpers -------------------------------------------------------------------
 
   StickyWithTodos _toStickyWithTodos(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final Map<String, dynamic> data = doc.data();
+    final Map<String, dynamic> data = doc.data() ?? <String, dynamic>{};
     final Sticky sticky = Sticky(
       id: doc.id,
       colorIndex: (data['colorIndex'] as num?)?.toInt() ?? 0,

@@ -1,9 +1,14 @@
+import 'dart:convert';
+
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme.dart';
+import '../../../../core/platform_utils.dart';
 import '../../../../data/local/database.dart';
 import '../../../../data/sticky_repository.dart';
+import '../../../auth/application/auth_providers.dart';
 import '../../application/board_providers.dart';
 
 /// A single sticky note: a colored card holding an inline, editable checklist.
@@ -31,6 +36,14 @@ class StickyNoteCard extends ConsumerWidget {
             Row(
               children: <Widget>[
                 const Spacer(),
+                if (isDesktop)
+                  IconButton(
+                    tooltip: '새 창으로 열기',
+                    iconSize: 18,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.open_in_new, color: Colors.black54),
+                    onPressed: () => _openInWindow(ref),
+                  ),
                 _ColorMenu(
                   stickyId: data.sticky.id,
                   current: data.sticky.colorIndex,
@@ -54,6 +67,16 @@ class StickyNoteCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _openInWindow(WidgetRef ref) async {
+    final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
+    final WindowController window = await DesktopMultiWindow.createWindow(
+      jsonEncode(<String, String>{'stickyId': data.sticky.id, 'uid': uid}),
+    );
+    await window.setFrame(const Offset(140, 140) & const Size(300, 360));
+    await window.setTitle('stiko');
+    await window.show();
   }
 }
 

@@ -44,6 +44,7 @@ dependencies:
   firebase_core: ^4.12.1
   firebase_auth: ^6.5.6
   cloud_firestore: ^6.7.1
+  desktop_multi_window: 0.2.0
 
 dev_dependencies:
   flutter_test:
