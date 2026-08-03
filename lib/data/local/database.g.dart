@@ -39,6 +39,18 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _opacityMeta = const VerificationMeta(
+    'opacity',
+  );
+  @override
+  late final GeneratedColumn<double> opacity = GeneratedColumn<double>(
+    'opacity',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1.0),
+  );
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',
   );
@@ -78,6 +90,7 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
     id,
     title,
     colorIndex,
+    opacity,
     sortOrder,
     createdAt,
     updatedAt,
@@ -109,6 +122,12 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
       context.handle(
         _colorIndexMeta,
         colorIndex.isAcceptableOrUnknown(data['color_index']!, _colorIndexMeta),
+      );
+    }
+    if (data.containsKey('opacity')) {
+      context.handle(
+        _opacityMeta,
+        opacity.isAcceptableOrUnknown(data['opacity']!, _opacityMeta),
       );
     }
     if (data.containsKey('sort_order')) {
@@ -154,6 +173,10 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
         DriftSqlType.int,
         data['${effectivePrefix}color_index'],
       )!,
+      opacity: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}opacity'],
+      )!,
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
@@ -179,6 +202,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   final String id;
   final String title;
   final int colorIndex;
+  final double opacity;
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -186,6 +210,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     required this.id,
     required this.title,
     required this.colorIndex,
+    required this.opacity,
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
@@ -196,6 +221,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     map['id'] = Variable<String>(id);
     map['title'] = Variable<String>(title);
     map['color_index'] = Variable<int>(colorIndex);
+    map['opacity'] = Variable<double>(opacity);
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -207,6 +233,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       id: Value(id),
       title: Value(title),
       colorIndex: Value(colorIndex),
+      opacity: Value(opacity),
       sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -222,6 +249,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       colorIndex: serializer.fromJson<int>(json['colorIndex']),
+      opacity: serializer.fromJson<double>(json['opacity']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -234,6 +262,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
       'colorIndex': serializer.toJson<int>(colorIndex),
+      'opacity': serializer.toJson<double>(opacity),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -244,6 +273,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     String? id,
     String? title,
     int? colorIndex,
+    double? opacity,
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -251,6 +281,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     id: id ?? this.id,
     title: title ?? this.title,
     colorIndex: colorIndex ?? this.colorIndex,
+    opacity: opacity ?? this.opacity,
     sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -262,6 +293,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       colorIndex: data.colorIndex.present
           ? data.colorIndex.value
           : this.colorIndex,
+      opacity: data.opacity.present ? data.opacity.value : this.opacity,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -274,6 +306,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('colorIndex: $colorIndex, ')
+          ..write('opacity: $opacity, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -282,8 +315,15 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, title, colorIndex, sortOrder, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    title,
+    colorIndex,
+    opacity,
+    sortOrder,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -291,6 +331,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
           other.id == this.id &&
           other.title == this.title &&
           other.colorIndex == this.colorIndex &&
+          other.opacity == this.opacity &&
           other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -300,6 +341,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   final Value<String> id;
   final Value<String> title;
   final Value<int> colorIndex;
+  final Value<double> opacity;
   final Value<int> sortOrder;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -308,6 +350,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.colorIndex = const Value.absent(),
+    this.opacity = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -317,6 +360,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     required String id,
     this.title = const Value.absent(),
     this.colorIndex = const Value.absent(),
+    this.opacity = const Value.absent(),
     this.sortOrder = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -328,6 +372,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     Expression<String>? id,
     Expression<String>? title,
     Expression<int>? colorIndex,
+    Expression<double>? opacity,
     Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -337,6 +382,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (colorIndex != null) 'color_index': colorIndex,
+      if (opacity != null) 'opacity': opacity,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -348,6 +394,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     Value<String>? id,
     Value<String>? title,
     Value<int>? colorIndex,
+    Value<double>? opacity,
     Value<int>? sortOrder,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -357,6 +404,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
       id: id ?? this.id,
       title: title ?? this.title,
       colorIndex: colorIndex ?? this.colorIndex,
+      opacity: opacity ?? this.opacity,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -375,6 +423,9 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     }
     if (colorIndex.present) {
       map['color_index'] = Variable<int>(colorIndex.value);
+    }
+    if (opacity.present) {
+      map['opacity'] = Variable<double>(opacity.value);
     }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
@@ -397,6 +448,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('colorIndex: $colorIndex, ')
+          ..write('opacity: $opacity, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -897,6 +949,7 @@ typedef $$StickiesTableCreateCompanionBuilder =
       required String id,
       Value<String> title,
       Value<int> colorIndex,
+      Value<double> opacity,
       Value<int> sortOrder,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -907,6 +960,7 @@ typedef $$StickiesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> title,
       Value<int> colorIndex,
+      Value<double> opacity,
       Value<int> sortOrder,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -958,6 +1012,11 @@ class $$StickiesTableFilterComposer
 
   ColumnFilters<int> get colorIndex => $composableBuilder(
     column: $table.colorIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get opacity => $composableBuilder(
+    column: $table.opacity,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1026,6 +1085,11 @@ class $$StickiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get opacity => $composableBuilder(
+    column: $table.opacity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
@@ -1061,6 +1125,9 @@ class $$StickiesTableAnnotationComposer
     column: $table.colorIndex,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get opacity =>
+      $composableBuilder(column: $table.opacity, builder: (column) => column);
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
@@ -1128,6 +1195,7 @@ class $$StickiesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<int> colorIndex = const Value.absent(),
+                Value<double> opacity = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -1136,6 +1204,7 @@ class $$StickiesTableTableManager
                 id: id,
                 title: title,
                 colorIndex: colorIndex,
+                opacity: opacity,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -1146,6 +1215,7 @@ class $$StickiesTableTableManager
                 required String id,
                 Value<String> title = const Value.absent(),
                 Value<int> colorIndex = const Value.absent(),
+                Value<double> opacity = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -1154,6 +1224,7 @@ class $$StickiesTableTableManager
                 id: id,
                 title: title,
                 colorIndex: colorIndex,
+                opacity: opacity,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

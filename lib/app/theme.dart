@@ -41,9 +41,19 @@ class StickyColors {
     Color(0xFF9BF6FF), // sky
     Color(0xFFBDB2FF), // lavender
     Color(0xFFFFC6FF), // pink
-    Color(0x00FFFFFF), // transparent
   ];
+
+  /// Smallest opacity the slider allows, so a sticky never vanishes entirely.
+  static const double minOpacity = 0.2;
 
   /// Returns a stable palette color for the given [index].
   static Color at(int index) => palette[index % palette.length];
+
+  /// The sticky color at [opacity], composited over white. Used on surfaces
+  /// with nothing behind them (mobile pages, board rows) so lower opacity reads
+  /// as a lighter card instead of a see-through hole.
+  static Color surface(int index, double opacity) => Color.alphaBlend(
+        at(index).withValues(alpha: opacity.clamp(0.0, 1.0)),
+        Colors.white,
+      );
 }

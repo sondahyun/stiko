@@ -48,6 +48,7 @@ class FirestoreStickyRepository implements StickyRepository {
     await _stickies.doc(id).set(<String, dynamic>{
       'title': title,
       'colorIndex': colorIndex,
+      'opacity': 1.0,
       'sortOrder': order,
       'createdAt': Timestamp.fromDate(now),
       'updatedAt': Timestamp.fromDate(now),
@@ -57,6 +58,7 @@ class FirestoreStickyRepository implements StickyRepository {
       id: id,
       title: title,
       colorIndex: colorIndex,
+      opacity: 1.0,
       sortOrder: order,
       createdAt: now,
       updatedAt: now,
@@ -67,6 +69,13 @@ class FirestoreStickyRepository implements StickyRepository {
   Future<void> setStickyColor(String stickyId, int colorIndex) =>
       _stickies.doc(stickyId).update(<String, dynamic>{
         'colorIndex': colorIndex,
+        'updatedAt': Timestamp.fromDate(_clock()),
+      });
+
+  @override
+  Future<void> setStickyOpacity(String stickyId, double opacity) =>
+      _stickies.doc(stickyId).update(<String, dynamic>{
+        'opacity': opacity,
         'updatedAt': Timestamp.fromDate(_clock()),
       });
 
@@ -159,6 +168,7 @@ class FirestoreStickyRepository implements StickyRepository {
       id: doc.id,
       title: data['title'] as String? ?? '',
       colorIndex: (data['colorIndex'] as num?)?.toInt() ?? 0,
+      opacity: (data['opacity'] as num?)?.toDouble() ?? 1.0,
       sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),

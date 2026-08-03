@@ -12,6 +12,7 @@ abstract interface class StickyRepository {
 
   Future<Sticky> addSticky({int colorIndex, String title});
   Future<void> setStickyColor(String stickyId, int colorIndex);
+  Future<void> setStickyOpacity(String stickyId, double opacity);
   Future<void> setStickyTitle(String stickyId, String title);
   Future<void> deleteSticky(String stickyId);
   Future<void> reorderStickies(List<Sticky> ordered);
@@ -57,6 +58,7 @@ class LocalStickyRepository implements StickyRepository {
       id: id,
       title: title,
       colorIndex: colorIndex,
+      opacity: 1.0,
       sortOrder: order,
       createdAt: now,
       updatedAt: now,
@@ -66,6 +68,10 @@ class LocalStickyRepository implements StickyRepository {
   @override
   Future<void> setStickyColor(String stickyId, int colorIndex) =>
       _db.updateStickyColor(stickyId, colorIndex, _clock());
+
+  @override
+  Future<void> setStickyOpacity(String stickyId, double opacity) =>
+      _db.updateStickyOpacity(stickyId, opacity, _clock());
 
   @override
   Future<void> setStickyTitle(String stickyId, String title) =>

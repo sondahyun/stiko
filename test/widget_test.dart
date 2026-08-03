@@ -12,12 +12,18 @@ import 'package:stiko/features/auth/application/auth_service.dart';
 import 'package:stiko/features/board/application/board_providers.dart';
 import 'package:stiko/features/board/presentation/sticky_detail_screen.dart';
 
-Sticky _sticky({String id = 's1', int colorIndex = 0, String title = ''}) {
+Sticky _sticky({
+  String id = 's1',
+  int colorIndex = 0,
+  String title = '',
+  double opacity = 1.0,
+}) {
   final DateTime now = DateTime(2026, 1, 1);
   return Sticky(
     id: id,
     title: title,
     colorIndex: colorIndex,
+    opacity: opacity,
     sortOrder: 0,
     createdAt: now,
     updatedAt: now,
@@ -76,6 +82,9 @@ class FakeStickyRepository implements StickyRepository {
 
   @override
   Future<void> setStickyColor(String stickyId, int colorIndex) async {}
+
+  @override
+  Future<void> setStickyOpacity(String stickyId, double opacity) async {}
 
   @override
   Future<void> setStickyTitle(String stickyId, String title) async {}

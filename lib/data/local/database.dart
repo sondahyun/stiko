@@ -8,6 +8,7 @@ class Stickies extends Table {
   TextColumn get id => text()();
   TextColumn get title => text().withDefault(const Constant(''))();
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
+  RealColumn get opacity => real().withDefault(const Constant(1.0))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -45,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'stiko'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +92,12 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateStickyColor(String id, int colorIndex, DateTime now) {
     return (update(stickies)..where((t) => t.id.equals(id))).write(
       StickiesCompanion(colorIndex: Value(colorIndex), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> updateStickyOpacity(String id, double opacity, DateTime now) {
+    return (update(stickies)..where((t) => t.id.equals(id))).write(
+      StickiesCompanion(opacity: Value(opacity), updatedAt: Value(now)),
     );
   }
 

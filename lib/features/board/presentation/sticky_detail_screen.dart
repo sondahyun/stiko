@@ -41,10 +41,10 @@ class StickyDetailScreen extends ConsumerWidget {
         }
 
         final Sticky sticky = data.sticky;
-        final Color color = StickyColors.at(sticky.colorIndex);
-        // Composite over white so a transparent sticky shows as a white page
-        // instead of an unreadable black one (there is nothing behind on mobile).
-        final Color surface = Color.alphaBlend(color, Colors.white);
+        // Composite over white so lower opacity shows as a lighter page instead
+        // of an unreadable black one (there is nothing behind on mobile).
+        final Color surface =
+            StickyColors.surface(sticky.colorIndex, sticky.opacity);
         final String title =
             sticky.title.trim().isNotEmpty ? sticky.title : '새 스티커';
 
@@ -60,7 +60,11 @@ class StickyDetailScreen extends ConsumerWidget {
                 icon: const Icon(Icons.edit_outlined, color: Colors.black54),
                 onPressed: () => _renameSticky(context, ref, sticky),
               ),
-              ColorMenu(stickyId: sticky.id, current: sticky.colorIndex),
+              StickyStyleButton(
+                stickyId: sticky.id,
+                colorIndex: sticky.colorIndex,
+                opacity: sticky.opacity,
+              ),
               IconButton(
                 tooltip: '스티커 삭제',
                 icon: const Icon(Icons.delete_outline, color: Colors.black54),

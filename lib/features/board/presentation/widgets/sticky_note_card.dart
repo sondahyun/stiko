@@ -19,14 +19,24 @@ import '../../application/board_providers.dart';
 final Map<String, int> _openStickyWindows = <String, int>{};
 final Set<String> _openingStickies = <String>{};
 
+/// Stickies mid-navigation on mobile, so a rapid double tap does not push the
+/// detail page twice (which would need two back presses to undo).
+final Set<String> _navigatingStickies = <String>{};
+
 /// Opens a sticky: on desktop in its own floating window, on mobile by
 /// navigating to a full-screen detail page.
 void openSticky(BuildContext context, WidgetRef ref, String stickyId) {
   if (isDesktop) {
     openStickyWindow(ref, stickyId);
-  } else {
-    context.push(StikoRoutes.stickyPath(stickyId));
+    return;
   }
+  if (_navigatingStickies.contains(stickyId)) return;
+  _navigatingStickies.add(stickyId);
+  Future<void>.delayed(
+    const Duration(milliseconds: 600),
+    () => _navigatingStickies.remove(stickyId),
+  );
+  context.push(StikoRoutes.stickyPath(stickyId));
 }
 
 /// Opens the given sticky in its own floating desktop window. If one is already
@@ -86,10 +96,10 @@ class StickyTitleRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Composite over white so a transparent sticky reads as a plain card
-    // rather than a black one on mobile, where nothing sits behind it.
+    // Composite over white so lower opacity reads as a lighter card rather than
+    // a black hole on mobile, where nothing sits behind the row.
     final Color surface =
-        Color.alphaBlend(StickyColors.at(data.sticky.colorIndex), Colors.white);
+        StickyColors.surface(data.sticky.colorIndex, data.sticky.opacity);
     final bool hasTitle = data.sticky.title.trim().isNotEmpty;
     final String label = hasTitle
         ? data.sticky.title
@@ -165,9 +175,10 @@ class StickyTitleRow extends ConsumerWidget {
                   icon: const Icon(Icons.open_in_new, color: Colors.black54),
                   onPressed: () => openStickyWindow(ref, data.sticky.id),
                 ),
-              ColorMenu(
+              StickyStyleButton(
                 stickyId: data.sticky.id,
-                current: data.sticky.colorIndex,
+                colorIndex: data.sticky.colorIndex,
+                opacity: data.sticky.opacity,
               ),
               IconButton(
                 tooltip: '스티커 삭제',
@@ -329,47 +340,140 @@ class _AddTodoLineState extends ConsumerState<AddTodoLine> {
 
 /// A palette popup for changing a sticky's color. The last entry is the
 /// transparent option.
-class ColorMenu extends ConsumerWidget {
-  const ColorMenu({super.key, required this.stickyId, required this.current});
+/// Opens the color + opacity editor for a sticky as a bottom sheet.
+Future<void> showStickyStyle(
+  BuildContext context,
+  WidgetRef ref, {
+  required String stickyId,
+  required int colorIndex,
+  required double opacity,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (BuildContext ctx) => _StickyStyleSheet(
+      stickyId: stickyId,
+      colorIndex: colorIndex,
+      opacity: opacity,
+    ),
+  );
+}
+
+/// A palette icon that opens the color + opacity editor.
+class StickyStyleButton extends ConsumerWidget {
+  const StickyStyleButton({
+    super.key,
+    required this.stickyId,
+    required this.colorIndex,
+    required this.opacity,
+  });
 
   final String stickyId;
-  final int current;
+  final int colorIndex;
+  final double opacity;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return PopupMenuButton<int>(
-      tooltip: '색상 변경',
-      icon: const Icon(Icons.palette_outlined, size: 18, color: Colors.black54),
-      onSelected: (int i) =>
-          ref.read(stickyRepositoryProvider).setStickyColor(stickyId, i),
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
-        for (int i = 0; i < StickyColors.palette.length; i++)
-          PopupMenuItem<int>(
-            value: i,
-            child: Row(
+    return IconButton(
+      tooltip: '색상 / 투명도',
+      iconSize: 18,
+      visualDensity: VisualDensity.compact,
+      icon: const Icon(Icons.palette_outlined, color: Colors.black54),
+      onPressed: () => showStickyStyle(
+        context,
+        ref,
+        stickyId: stickyId,
+        colorIndex: colorIndex,
+        opacity: opacity,
+      ),
+    );
+  }
+}
+
+/// Bottom sheet: the 6 palette colors plus an opacity slider that applies to
+/// whichever color is chosen.
+class _StickyStyleSheet extends ConsumerStatefulWidget {
+  const _StickyStyleSheet({
+    required this.stickyId,
+    required this.colorIndex,
+    required this.opacity,
+  });
+
+  final String stickyId;
+  final int colorIndex;
+  final double opacity;
+
+  @override
+  ConsumerState<_StickyStyleSheet> createState() => _StickyStyleSheetState();
+}
+
+class _StickyStyleSheetState extends ConsumerState<_StickyStyleSheet> {
+  late double _opacity = widget.opacity;
+  late int _colorIndex = widget.colorIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final StickyRepository repo = ref.read(stickyRepositoryProvider);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text('색상', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 14,
+              runSpacing: 14,
               children: <Widget>[
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: StickyColors.at(i),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black26),
+                for (int i = 0; i < StickyColors.palette.length; i++)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => _colorIndex = i);
+                      repo.setStickyColor(widget.stickyId, i);
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: StickyColors.at(i),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              i == _colorIndex ? Colors.black87 : Colors.black26,
+                          width: i == _colorIndex ? 2.5 : 1,
+                        ),
+                      ),
+                      child: i == _colorIndex
+                          ? const Icon(Icons.check,
+                              size: 18, color: Colors.black87)
+                          : null,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                if (i == current)
-                  const Icon(Icons.check, size: 16)
-                else
-                  const SizedBox(width: 16),
-                if (i == StickyColors.palette.length - 1) ...<Widget>[
-                  const SizedBox(width: 6),
-                  const Text('투명', style: TextStyle(fontSize: 12)),
-                ],
               ],
             ),
-          ),
-      ],
+            const SizedBox(height: 20),
+            Row(
+              children: <Widget>[
+                const Text('투명도',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text('${(_opacity * 100).round()}%',
+                    style: const TextStyle(color: Colors.black54)),
+              ],
+            ),
+            Slider(
+              value: _opacity,
+              min: StickyColors.minOpacity,
+              max: 1.0,
+              onChanged: (double v) => setState(() => _opacity = v),
+              onChangeEnd: (double v) =>
+                  repo.setStickyOpacity(widget.stickyId, v),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

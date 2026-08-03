@@ -70,6 +70,9 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
     super.initState();
     _repo = FirestoreStickyRepository(uid: widget.uid);
     _stickyStream = _repo.watchSticky(widget.stickyId);
+    // Make the OS window non-opaque so a low-opacity sticky lets the desktop
+    // show through it (a soft translucent look).
+    windowManager.setBackgroundColor(Colors.transparent);
   }
 
   @override
@@ -113,23 +116,133 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
     }
   }
 
+  Future<void> _rename(String current) async {
+    final TextEditingController controller =
+        TextEditingController(text: current);
+    final String? result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('제목 변경'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            labelText: '제목',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (String v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result != null) await _repo.setStickyTitle(widget.stickyId, result);
+  }
+
+  Future<void> _showStyle(int colorIndex, double opacity) {
+    int localColor = colorIndex;
+    double localOpacity = opacity;
+    return showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text('색상',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  children: <Widget>[
+                    for (int i = 0; i < StickyColors.palette.length; i++)
+                      GestureDetector(
+                        onTap: () {
+                          setSheet(() => localColor = i);
+                          _repo.setStickyColor(widget.stickyId, i);
+                        },
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: StickyColors.at(i),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: i == localColor
+                                  ? Colors.black87
+                                  : Colors.black26,
+                              width: i == localColor ? 2.5 : 1,
+                            ),
+                          ),
+                          child: i == localColor
+                              ? const Icon(Icons.check,
+                                  size: 18, color: Colors.black87)
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: <Widget>[
+                    const Text('투명도',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text('${(localOpacity * 100).round()}%',
+                        style: const TextStyle(color: Colors.black54)),
+                  ],
+                ),
+                Slider(
+                  value: localOpacity,
+                  min: StickyColors.minOpacity,
+                  max: 1.0,
+                  onChanged: (double v) => setSheet(() => localOpacity = v),
+                  onChangeEnd: (double v) =>
+                      _repo.setStickyOpacity(widget.stickyId, v),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: StreamBuilder<StickyWithTodos?>(
         stream: _stickyStream,
         builder: (BuildContext context, AsyncSnapshot<StickyWithTodos?> snap) {
           final StickyWithTodos? data = snap.data;
-          final Color color = StickyColors.at(data?.sticky.colorIndex ?? 0);
+          final int colorIndex = data?.sticky.colorIndex ?? 0;
+          final double opacity = data?.sticky.opacity ?? 1.0;
+          final String rawTitle = data?.sticky.title ?? '';
+          final Color color =
+              StickyColors.at(colorIndex).withValues(alpha: opacity);
           final String title =
-              (data != null && data.sticky.title.trim().isNotEmpty)
-                  ? data.sticky.title
-                  : '새 스티커';
+              rawTitle.trim().isNotEmpty ? rawTitle : '새 스티커';
           return Container(
             color: color,
             child: Column(
               children: <Widget>[
-                _toolbar(title),
+                _toolbar(title, rawTitle, colorIndex, opacity),
                 if (!_collapsed)
                   Expanded(
                     child: !snap.hasData
@@ -146,7 +259,12 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
     );
   }
 
-  Widget _toolbar(String title) {
+  Widget _toolbar(
+    String title,
+    String rawTitle,
+    int colorIndex,
+    double opacity,
+  ) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onPanStart: (_) => windowManager.startDragging(),
@@ -161,15 +279,26 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
         child: Row(
           children: <Widget>[
             Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _rename(rawTitle),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
+            ),
+            IconButton(
+              tooltip: '색상 / 투명도',
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.palette_outlined, color: Colors.black54),
+              onPressed: () => _showStyle(colorIndex, opacity),
             ),
             IconButton(
               tooltip: _pinned ? '항상 위 해제' : '항상 위 고정',
