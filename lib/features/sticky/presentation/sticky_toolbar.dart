@@ -55,9 +55,12 @@ class StickyToolbar extends ConsumerWidget {
               tooltip: windowState.alwaysOnTop ? '항상 위 해제' : '항상 위 고정',
               iconSize: 18,
               visualDensity: VisualDensity.compact,
-              isSelected: windowState.alwaysOnTop,
-              icon: const Icon(Icons.push_pin_outlined),
-              selectedIcon: const Icon(Icons.push_pin),
+              icon: Icon(
+                windowState.alwaysOnTop
+                    ? Icons.push_pin
+                    : Icons.push_pin_outlined,
+                color: windowState.alwaysOnTop ? const Color(0xFF6E5E17) : null,
+              ),
               onPressed: controller.toggleAlwaysOnTop,
             ),
             IconButton(

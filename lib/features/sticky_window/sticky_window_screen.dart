@@ -59,8 +59,10 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   final TextEditingController _addController = TextEditingController();
   final FocusNode _addFocus = FocusNode();
 
+  static const double _barHeight = 44;
   bool _collapsed = false;
   bool _pinned = false;
+  bool _resizing = false;
   double _expandedHeight = 360;
 
   @override
@@ -92,14 +94,23 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   }
 
   Future<void> _toggleCollapse() async {
-    final Size size = await windowManager.getSize();
-    if (!_collapsed) {
-      _expandedHeight = size.height;
-      await windowManager.setSize(Size(size.width, 44));
-    } else {
-      await windowManager.setSize(Size(size.width, _expandedHeight));
+    // Guard against overlapping calls (collapse button + toolbar double-tap
+    // firing together) that would desync window size and _collapsed state.
+    if (_resizing) return;
+    _resizing = true;
+    try {
+      final Size size = await windowManager.getSize();
+      if (!_collapsed) {
+        if (size.height > _barHeight + 20) _expandedHeight = size.height;
+        await windowManager.setSize(Size(size.width, _barHeight));
+        if (mounted) setState(() => _collapsed = true);
+      } else {
+        await windowManager.setSize(Size(size.width, _expandedHeight));
+        if (mounted) setState(() => _collapsed = false);
+      }
+    } finally {
+      _resizing = false;
     }
-    setState(() => _collapsed = !_collapsed);
   }
 
   @override
@@ -141,7 +152,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
       onPanStart: (_) => windowManager.startDragging(),
       onDoubleTap: _toggleCollapse,
       child: Container(
-        height: 44,
+        height: _barHeight,
         color: Colors.black.withValues(alpha: 0.06),
         padding: EdgeInsets.only(
           left: defaultTargetPlatform == TargetPlatform.macOS ? 88 : 12,
@@ -164,9 +175,10 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
               tooltip: _pinned ? '항상 위 해제' : '항상 위 고정',
               iconSize: 18,
               visualDensity: VisualDensity.compact,
-              isSelected: _pinned,
-              icon: const Icon(Icons.push_pin_outlined, color: Colors.black54),
-              selectedIcon: const Icon(Icons.push_pin, color: Colors.black87),
+              icon: Icon(
+                _pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                color: _pinned ? const Color(0xFF6E5E17) : Colors.black54,
+              ),
               onPressed: _togglePin,
             ),
             IconButton(
