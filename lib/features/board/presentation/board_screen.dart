@@ -15,6 +15,8 @@ class BoardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Keep the home / lock screen widget in sync while the board is open.
+    ref.watch(widgetSyncProvider);
     if (isDesktop) return const _DesktopBoard();
     return const _MobileBoard();
   }

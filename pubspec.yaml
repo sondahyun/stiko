@@ -46,6 +46,7 @@ dependencies:
   cloud_firestore: ^6.7.1
   desktop_multi_window: 0.2.0
   screen_retriever: ^0.2.2
+  home_widget: ^0.9.0
 
 dev_dependencies:
   flutter_test:
