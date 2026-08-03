@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../application/auth_providers.dart';
+import '../application/auth_service.dart';
 
 /// Email / password sign-in screen.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -39,8 +40,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: _password.text,
           );
       // Successful sign-in triggers a redirect to the board.
-    } catch (_) {
-      if (mounted) setState(() => _error = '로그인에 실패했습니다. 다시 시도해 주세요.');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error =
+            e is AuthException ? e.message : '로그인에 실패했습니다. 다시 시도해 주세요.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

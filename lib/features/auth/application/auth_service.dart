@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// The signed-in user, kept minimal so a Firebase user maps cleanly onto it.
 class AppUser {
@@ -10,8 +10,17 @@ class AppUser {
   final String email;
 }
 
-/// Authentication contract. A Firebase-backed implementation replaces the
-/// local stub once the Firebase project is connected.
+/// A user-facing authentication failure carrying a friendly message.
+class AuthException implements Exception {
+  const AuthException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Authentication contract, so the UI depends on behavior rather than Firebase.
 abstract interface class AuthService {
   Stream<AppUser?> authStateChanges();
   AppUser? get currentUser;
@@ -20,57 +29,70 @@ abstract interface class AuthService {
   Future<void> signOut();
 }
 
-/// Temporary local stand-in used until Firebase is wired up.
-///
-/// It accepts any credentials and simply remembers the last email, so the
-/// login / signup / logout flow works end to end before real auth exists.
-class LocalStubAuthService implements AuthService {
-  LocalStubAuthService() {
-    _restore();
-  }
+/// Firebase-backed authentication.
+class FirebaseAuthService implements AuthService {
+  FirebaseAuthService([FirebaseAuth? auth])
+      : _auth = auth ?? FirebaseAuth.instance;
 
-  final StreamController<void> _changes = StreamController<void>.broadcast();
-  AppUser? _current;
+  final FirebaseAuth _auth;
 
-  static const String _kEmail = 'auth.stub.email';
-
-  Future<void> _restore() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? email = prefs.getString(_kEmail);
-    _current =
-        email == null ? null : AppUser(uid: 'local-$email', email: email);
-    _changes.add(null);
-  }
+  AppUser? _map(User? user) =>
+      user == null ? null : AppUser(uid: user.uid, email: user.email ?? '');
 
   @override
-  AppUser? get currentUser => _current;
+  AppUser? get currentUser => _map(_auth.currentUser);
 
   @override
-  Stream<AppUser?> authStateChanges() async* {
-    yield _current;
-    yield* _changes.stream.map((_) => _current);
+  Stream<AppUser?> authStateChanges() => _auth.authStateChanges().map(_map);
+
+  @override
+  Future<void> signIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_message(e));
+    }
   }
 
   @override
-  Future<void> signIn({required String email, required String password}) =>
-      _setUser(email);
-
-  @override
-  Future<void> signUp({required String email, required String password}) =>
-      _setUser(email);
-
-  Future<void> _setUser(String email) async {
-    _current = AppUser(uid: 'local-$email', email: email);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kEmail, email);
-    _changes.add(null);
+  Future<void> signUp({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      throw AuthException(_message(e));
+    }
   }
 
   @override
-  Future<void> signOut() async {
-    _current = null;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kEmail);
-    _changes.add(null);
+  Future<void> signOut() => _auth.signOut();
+
+  String _message(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return '이메일 형식이 올바르지 않습니다.';
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return '이메일 또는 비밀번호가 올바르지 않습니다.';
+      case 'email-already-in-use':
+        return '이미 가입된 이메일입니다.';
+      case 'weak-password':
+        return '비밀번호가 너무 약합니다. 6자 이상 사용하세요.';
+      case 'network-request-failed':
+        return '네트워크 연결을 확인해 주세요.';
+      case 'too-many-requests':
+        return '잠시 후 다시 시도해 주세요.';
+      default:
+        return '인증 중 오류가 발생했습니다. (${e.code})';
+    }
   }
 }

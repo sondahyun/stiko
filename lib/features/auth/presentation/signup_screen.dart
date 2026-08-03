@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../application/auth_providers.dart';
+import '../application/auth_service.dart';
 
 /// Email / password sign-up screen.
 class SignupScreen extends ConsumerStatefulWidget {
@@ -40,8 +41,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             email: _email.text.trim(),
             password: _password.text,
           );
-    } catch (_) {
-      if (mounted) setState(() => _error = '회원가입에 실패했습니다. 다시 시도해 주세요.');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error =
+            e is AuthException ? e.message : '회원가입에 실패했습니다. 다시 시도해 주세요.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
