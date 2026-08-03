@@ -12,7 +12,7 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 
 /// Repository that exposes todo operations to the UI layer.
 final todoRepositoryProvider = Provider<TodoRepository>((ref) {
-  return TodoRepository(ref.watch(databaseProvider));
+  return LocalTodoRepository(ref.watch(databaseProvider));
 });
 
 /// Reactive stream of all todos, ordered for display.

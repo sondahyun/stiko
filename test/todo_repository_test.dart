@@ -9,7 +9,7 @@ void main() {
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
-    repo = TodoRepository(db);
+    repo = LocalTodoRepository(db);
   });
 
   tearDown(() async {

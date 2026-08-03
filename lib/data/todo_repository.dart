@@ -3,12 +3,32 @@ import 'package:uuid/uuid.dart';
 
 import 'local/database.dart';
 
-/// Coordinates all todo persistence.
+/// Contract for reading and mutating todos.
+///
+/// Keeping this as an interface lets the UI depend on behavior, not storage,
+/// so a cloud-synced implementation can be swapped in later without touching
+/// the widgets.
+abstract interface class TodoRepository {
+  Stream<List<Todo>> watchTodos();
+  Future<List<Todo>> getTodos();
+  Future<Todo> addTodo({required String title, String? note, int colorIndex});
+  Future<void> editTodo(
+    String id, {
+    String? title,
+    String? note,
+    int? colorIndex,
+  });
+  Future<void> toggleDone(String id, bool isDone);
+  Future<void> deleteTodo(String id);
+  Future<void> clearCompleted();
+}
+
+/// Drift-backed [TodoRepository].
 ///
 /// Owns id and timestamp generation so the rest of the app never has to think
 /// about them. [uuid] and [clock] are injectable to keep tests deterministic.
-class TodoRepository {
-  TodoRepository(
+class LocalTodoRepository implements TodoRepository {
+  LocalTodoRepository(
     this._db, {
     this._uuid = const Uuid(),
     this._clock = DateTime.now,
@@ -18,11 +38,13 @@ class TodoRepository {
   final Uuid _uuid;
   final DateTime Function() _clock;
 
+  @override
   Stream<List<Todo>> watchTodos() => _db.watchTodos();
 
+  @override
   Future<List<Todo>> getTodos() => _db.getAllTodos();
 
-  /// Creates a new todo and returns the stored row.
+  @override
   Future<Todo> addTodo({
     required String title,
     String? note,
@@ -44,7 +66,7 @@ class TodoRepository {
     return (await _db.getTodoById(id))!;
   }
 
-  /// Updates editable fields. A null argument leaves that field unchanged.
+  @override
   Future<void> editTodo(
     String id, {
     String? title,
@@ -63,6 +85,7 @@ class TodoRepository {
     );
   }
 
+  @override
   Future<void> toggleDone(String id, bool isDone) {
     return _db.patchTodo(
       id,
@@ -70,7 +93,9 @@ class TodoRepository {
     );
   }
 
+  @override
   Future<void> deleteTodo(String id) => _db.deleteTodo(id);
 
+  @override
   Future<void> clearCompleted() => _db.deleteCompleted();
 }
