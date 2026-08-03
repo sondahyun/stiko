@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
+import '../features/board/presentation/board_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
-import '../features/todos/presentation/todo_list_screen.dart';
 
 /// Named route paths used across the app.
 class StikoRoutes {
@@ -17,7 +17,7 @@ final GoRouter appRouter = GoRouter(
   routes: <RouteBase>[
     GoRoute(
       path: StikoRoutes.home,
-      builder: (context, state) => const TodoListScreen(),
+      builder: (context, state) => const BoardScreen(),
     ),
     GoRoute(
       path: StikoRoutes.settings,

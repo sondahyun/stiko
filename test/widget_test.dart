@@ -4,23 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stiko/app/app.dart';
 import 'package:stiko/data/local/database.dart';
-import 'package:stiko/data/todo_repository.dart';
-import 'package:stiko/features/todos/application/todo_providers.dart';
+import 'package:stiko/data/sticky_repository.dart';
+import 'package:stiko/features/board/application/board_providers.dart';
 
-/// Builds a [Todo] with fixed, deterministic timestamps for widget tests.
-Todo _todo({
-  String id = 't1',
-  String title = '할 일',
-  String? note,
-  bool isDone = false,
-  int colorIndex = 0,
-}) {
+Sticky _sticky({String id = 's1', int colorIndex = 0}) {
   final DateTime now = DateTime(2026, 1, 1);
-  return Todo(
+  return Sticky(
     id: id,
-    title: title,
-    note: note,
-    isDone: isDone,
     colorIndex: colorIndex,
     sortOrder: 0,
     createdAt: now,
@@ -28,48 +18,67 @@ Todo _todo({
   );
 }
 
+Todo _todo({
+  String id = 't1',
+  String stickyId = 's1',
+  String content = '할 일',
+  bool isDone = false,
+}) {
+  final DateTime now = DateTime(2026, 1, 1);
+  return Todo(
+    id: id,
+    stickyId: stickyId,
+    content: content,
+    isDone: isDone,
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
 /// In-memory fake so widget tests never touch Drift or its timers.
-class FakeTodoRepository implements TodoRepository {
-  FakeTodoRepository(this._seed);
+class FakeStickyRepository implements StickyRepository {
+  FakeStickyRepository(this._board);
 
-  final List<Todo> _seed;
+  final List<StickyWithTodos> _board;
   final List<(String id, bool isDone)> toggled = <(String, bool)>[];
-  final List<String> deleted = <String>[];
+  int addStickyCount = 0;
 
   @override
-  Stream<List<Todo>> watchTodos() => Stream<List<Todo>>.value(_seed);
+  Stream<List<StickyWithTodos>> watchBoard() =>
+      Stream<List<StickyWithTodos>>.value(_board);
 
   @override
-  Future<List<Todo>> getTodos() async => _seed;
+  Future<Sticky> addSticky({int colorIndex = 0}) async {
+    addStickyCount++;
+    return _sticky(id: 'new', colorIndex: colorIndex);
+  }
 
   @override
-  Future<Todo> addTodo({
-    required String title,
-    String? note,
-    int colorIndex = 0,
-  }) async =>
-      _todo(title: title, note: note, colorIndex: colorIndex);
+  Future<Todo> addTodo(String stickyId, String content) async =>
+      _todo(stickyId: stickyId, content: content);
 
   @override
-  Future<void> editTodo(
-    String id, {
-    String? title,
-    String? note,
-    int? colorIndex,
-  }) async {}
+  Future<void> toggleTodo(String todoId, bool isDone) async =>
+      toggled.add((todoId, isDone));
 
   @override
-  Future<void> toggleDone(String id, bool isDone) async =>
-      toggled.add((id, isDone));
+  Future<void> editTodoContent(String todoId, String content) async {}
 
   @override
-  Future<void> deleteTodo(String id) async => deleted.add(id);
+  Future<void> deleteTodo(String todoId) async {}
 
   @override
-  Future<void> clearCompleted() async {}
+  Future<void> deleteSticky(String stickyId) async {}
 
   @override
-  Future<void> reorder(List<Todo> orderedTodos) async {}
+  Future<void> setStickyColor(String stickyId, int colorIndex) async {}
+
+  @override
+  Future<void> reorderStickies(List<Sticky> ordered) async {}
+
+  @override
+  Future<void> reorderTodos(List<Todo> ordered) async {}
 }
 
 void main() {
@@ -79,34 +88,35 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  Widget bootstrap(TodoRepository repo) {
+  Widget bootstrap(StickyRepository repo) {
     return ProviderScope(
-      overrides: <Override>[todoRepositoryProvider.overrideWithValue(repo)],
+      overrides: <Override>[stickyRepositoryProvider.overrideWithValue(repo)],
       child: const StikoApp(),
     );
   }
 
-  testWidgets('할 일이 없으면 빈 상태 안내가 보인다', (tester) async {
-    await tester.pumpWidget(bootstrap(FakeTodoRepository(const <Todo>[])));
+  testWidgets('스티커가 없으면 빈 안내가 보인다', (tester) async {
+    await tester.pumpWidget(bootstrap(FakeStickyRepository(const <StickyWithTodos>[])));
     await tester.pumpAndSettle();
 
-    expect(find.text('stiko'), findsOneWidget);
-    expect(find.text('할 일이 없습니다'), findsOneWidget);
+    expect(find.text('스티커가 없습니다'), findsOneWidget);
   });
 
-  testWidgets('저장된 할 일이 목록에 표시된다', (tester) async {
-    await tester.pumpWidget(
-      bootstrap(FakeTodoRepository(<Todo>[_todo(title: '장보기')])),
-    );
+  testWidgets('스티커 안의 할 일이 표시된다', (tester) async {
+    final List<StickyWithTodos> board = <StickyWithTodos>[
+      StickyWithTodos(_sticky(), <Todo>[_todo(content: '장보기')]),
+    ];
+    await tester.pumpWidget(bootstrap(FakeStickyRepository(board)));
     await tester.pumpAndSettle();
 
     expect(find.text('장보기'), findsOneWidget);
-    expect(find.text('할 일이 없습니다'), findsNothing);
+    expect(find.text('스티커가 없습니다'), findsNothing);
   });
 
-  testWidgets('체크박스를 누르면 toggleDone이 호출된다', (tester) async {
-    final FakeTodoRepository repo =
-        FakeTodoRepository(<Todo>[_todo(id: 'abc', title: '완료할 일')]);
+  testWidgets('체크박스를 누르면 toggleTodo가 호출된다', (tester) async {
+    final FakeStickyRepository repo = FakeStickyRepository(<StickyWithTodos>[
+      StickyWithTodos(_sticky(), <Todo>[_todo(id: 'abc', content: '완료할 일')]),
+    ]);
     await tester.pumpWidget(bootstrap(repo));
     await tester.pumpAndSettle();
 

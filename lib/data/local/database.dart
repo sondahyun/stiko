@@ -3,20 +3,11 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 part 'database.g.dart';
 
-/// A single todo item, persisted locally.
-///
-/// [id] is a client-generated UUID so the same row can later be matched to a
-/// remote document when cloud sync is added.
-class Todos extends Table {
+/// A sticky note: a colored container that holds a list of todos.
+class Stickies extends Table {
   TextColumn get id => text()();
-  TextColumn get title => text().withLength(min: 1, max: 500)();
-  TextColumn get note => text().nullable()();
-  BoolColumn get isDone => boolean().withDefault(const Constant(false))();
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
-
-  /// Manual ordering key. Lower values appear first.
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
-
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -24,39 +15,117 @@ class Todos extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Todos])
+/// A single checkable line inside a sticky.
+class Todos extends Table {
+  TextColumn get id => text()();
+  TextColumn get stickyId =>
+      text().references(Stickies, #id, onDelete: KeyAction.cascade)();
+  TextColumn get content => text().withLength(max: 500)();
+  BoolColumn get isDone => boolean().withDefault(const Constant(false))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// A sticky paired with its ordered todos, ready for display.
+class StickyWithTodos {
+  StickyWithTodos(this.sticky, this.todos);
+
+  final Sticky sticky;
+  final List<Todo> todos;
+}
+
+@DriftDatabase(tables: [Stickies, Todos])
 class AppDatabase extends _$AppDatabase {
-  /// Opens the on-device database. Pass a custom [executor] (for example an
-  /// in-memory one) in tests.
   AppDatabase([QueryExecutor? executor])
       : super(executor ?? driftDatabase(name: 'stiko'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
-  /// Emits the full todo list, ordered for display, on every change.
-  Stream<List<Todo>> watchTodos() => _ordered().watch();
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (Migrator m, int from, int to) async {
+          // No production data yet, so recreate the schema from scratch.
+          for (final table in allTables) {
+            await m.deleteTable(table.actualTableName);
+          }
+          await m.createAll();
+        },
+      );
 
-  /// Reads the full todo list once.
-  Future<List<Todo>> getAllTodos() => _ordered().get();
+  /// Emits every sticky with its todos, ordered for display, on each change.
+  Stream<List<StickyWithTodos>> watchBoard() {
+    final query = select(stickies).join(<Join>[
+      leftOuterJoin(todos, todos.stickyId.equalsExp(stickies.id)),
+    ])
+      ..orderBy(<OrderingTerm>[
+        OrderingTerm(expression: stickies.sortOrder),
+        OrderingTerm(expression: todos.sortOrder),
+      ]);
+
+    return query.watch().map((rows) {
+      final grouped = <String, StickyWithTodos>{};
+      for (final row in rows) {
+        final sticky = row.readTable(stickies);
+        final todo = row.readTableOrNull(todos);
+        final entry = grouped.putIfAbsent(
+          sticky.id,
+          () => StickyWithTodos(sticky, <Todo>[]),
+        );
+        if (todo != null) entry.todos.add(todo);
+      }
+      return grouped.values.toList();
+    });
+  }
+
+  // Sticky operations ---------------------------------------------------------
+
+  Future<void> createSticky(StickiesCompanion sticky) =>
+      into(stickies).insert(sticky);
+
+  Future<void> updateStickyColor(String id, int colorIndex, DateTime now) {
+    return (update(stickies)..where((t) => t.id.equals(id))).write(
+      StickiesCompanion(colorIndex: Value(colorIndex), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> deleteSticky(String id) {
+    return transaction(() async {
+      await (delete(todos)..where((t) => t.stickyId.equals(id))).go();
+      await (delete(stickies)..where((t) => t.id.equals(id))).go();
+    });
+  }
+
+  Future<void> reorderStickiesByIds(List<String> orderedIds) async {
+    await batch((batch) {
+      for (int i = 0; i < orderedIds.length; i++) {
+        batch.update(
+          stickies,
+          StickiesCompanion(sortOrder: Value(i)),
+          where: (t) => t.id.equals(orderedIds[i]),
+        );
+      }
+    });
+  }
+
+  // Todo operations -----------------------------------------------------------
+
+  Future<void> createTodo(TodosCompanion todo) => into(todos).insert(todo);
 
   Future<Todo?> getTodoById(String id) =>
       (select(todos)..where((t) => t.id.equals(id))).getSingleOrNull();
 
-  Future<void> createTodo(TodosCompanion entry) => into(todos).insert(entry);
-
-  /// Applies a partial update to the row with [id].
   Future<void> patchTodo(String id, TodosCompanion patch) =>
       (update(todos)..where((t) => t.id.equals(id))).write(patch);
 
-  Future<int> deleteTodo(String id) =>
+  Future<void> deleteTodo(String id) =>
       (delete(todos)..where((t) => t.id.equals(id))).go();
 
-  Future<int> deleteCompleted() =>
-      (delete(todos)..where((t) => t.isDone.equals(true))).go();
-
-  /// Rewrites [sortOrder] so the stored order matches [orderedIds] top down.
-  Future<void> reorderByIds(List<String> orderedIds) async {
+  Future<void> reorderTodosByIds(List<String> orderedIds) async {
     await batch((batch) {
       for (int i = 0; i < orderedIds.length; i++) {
         batch.update(
@@ -66,13 +135,5 @@ class AppDatabase extends _$AppDatabase {
         );
       }
     });
-  }
-
-  SimpleSelectStatement<$TodosTable, Todo> _ordered() {
-    return select(todos)
-      ..orderBy([
-        (t) => OrderingTerm(expression: t.sortOrder),
-        (t) => OrderingTerm(expression: t.createdAt),
-      ]);
   }
 }
