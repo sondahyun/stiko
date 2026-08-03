@@ -5,16 +5,103 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme.dart';
-import '../../../../core/platform_utils.dart';
 import '../../../../data/local/database.dart';
 import '../../../../data/sticky_repository.dart';
 import '../../../auth/application/auth_providers.dart';
 import '../../application/board_providers.dart';
 
-/// A single sticky note: a colored card holding an inline, editable checklist.
-///
-/// There is no add button. Type into the bottom line and press Enter to add a
-/// todo; type into an existing line to edit it; clear a line to remove it.
+/// Opens the given sticky in its own floating desktop window.
+Future<void> openStickyWindow(WidgetRef ref, String stickyId) async {
+  final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
+  final WindowController window = await DesktopMultiWindow.createWindow(
+    jsonEncode(<String, String>{'stickyId': stickyId, 'uid': uid}),
+  );
+  await window.setFrame(const Offset(160, 160) & const Size(300, 360));
+  await window.setTitle('stiko');
+  await window.show();
+}
+
+/// Compact desktop list row: shows only the sticky's title and progress.
+/// Tap (or the open icon) opens the sticky in its own window.
+class StickyTitleRow extends ConsumerWidget {
+  const StickyTitleRow({super.key, required this.data});
+
+  final StickyWithTodos data;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final Color color = StickyColors.at(data.sticky.colorIndex);
+    final String title =
+        data.sticky.title.trim().isNotEmpty ? data.sticky.title : '새 스티커';
+    final int done = data.todos.where((Todo t) => t.isDone).length;
+
+    return Material(
+      color: color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Colors.black12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => openStickyWindow(ref, data.sticky.id),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (data.todos.isNotEmpty)
+                      Text(
+                        '$done / ${data.todos.length} 완료',
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: '새 창으로 열기',
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.open_in_new, color: Colors.black54),
+                onPressed: () => openStickyWindow(ref, data.sticky.id),
+              ),
+              _ColorMenu(
+                stickyId: data.sticky.id,
+                current: data.sticky.colorIndex,
+              ),
+              IconButton(
+                tooltip: '스티커 삭제',
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.delete_outline, color: Colors.black54),
+                onPressed: () =>
+                    ref.read(stickyRepositoryProvider).deleteSticky(data.sticky.id),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full sticky note with an inline, editable checklist. Used on mobile.
 class StickyNoteCard extends ConsumerWidget {
   const StickyNoteCard({super.key, required this.data});
 
@@ -26,24 +113,31 @@ class StickyNoteCard extends ConsumerWidget {
 
     return Material(
       color: color,
-      borderRadius: BorderRadius.circular(12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Colors.black12),
+      ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 4, 10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            if (data.sticky.title.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 0, 0),
+                child: Text(
+                  data.sticky.title,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             Row(
               children: <Widget>[
                 const Spacer(),
-                if (isDesktop)
-                  IconButton(
-                    tooltip: '새 창으로 열기',
-                    iconSize: 18,
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.open_in_new, color: Colors.black54),
-                    onPressed: () => _openInWindow(ref),
-                  ),
                 _ColorMenu(
                   stickyId: data.sticky.id,
                   current: data.sticky.colorIndex,
@@ -53,10 +147,9 @@ class StickyNoteCard extends ConsumerWidget {
                   iconSize: 18,
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.delete_outline, color: Colors.black54),
-                  onPressed: () =>
-                      ref.read(stickyRepositoryProvider).deleteSticky(
-                            data.sticky.id,
-                          ),
+                  onPressed: () => ref
+                      .read(stickyRepositoryProvider)
+                      .deleteSticky(data.sticky.id),
                 ),
               ],
             ),
@@ -68,19 +161,8 @@ class StickyNoteCard extends ConsumerWidget {
       ),
     );
   }
-
-  Future<void> _openInWindow(WidgetRef ref) async {
-    final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
-    final WindowController window = await DesktopMultiWindow.createWindow(
-      jsonEncode(<String, String>{'stickyId': data.sticky.id, 'uid': uid}),
-    );
-    await window.setFrame(const Offset(140, 140) & const Size(300, 360));
-    await window.setTitle('stiko');
-    await window.show();
-  }
 }
 
-/// One existing todo: a checkbox plus inline-editable text.
 class _TodoLine extends ConsumerStatefulWidget {
   const _TodoLine({super.key, required this.todo});
 
@@ -126,7 +208,6 @@ class _TodoLineState extends ConsumerState<_TodoLine> {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
         Checkbox(
           value: widget.todo.isDone,
@@ -164,7 +245,6 @@ class _TodoLineState extends ConsumerState<_TodoLine> {
   }
 }
 
-/// The always-present bottom line: type and press Enter to add a todo.
 class _AddTodoLine extends ConsumerStatefulWidget {
   const _AddTodoLine({required this.stickyId});
 
@@ -190,8 +270,7 @@ class _AddTodoLineState extends ConsumerState<_AddTodoLine> {
     if (text.isEmpty) return;
     _controller.clear();
     await ref.read(stickyRepositoryProvider).addTodo(widget.stickyId, text);
-    if (!mounted) return;
-    _focus.requestFocus();
+    if (mounted) _focus.requestFocus();
   }
 
   @override
@@ -223,7 +302,6 @@ class _AddTodoLineState extends ConsumerState<_AddTodoLine> {
   }
 }
 
-/// Popup to change a sticky's color.
 class _ColorMenu extends ConsumerWidget {
   const _ColorMenu({required this.stickyId, required this.current});
 
@@ -257,6 +335,10 @@ class _ColorMenu extends ConsumerWidget {
                   const Icon(Icons.check, size: 16)
                 else
                   const SizedBox(width: 16),
+                if (i == StickyColors.palette.length - 1) ...<Widget>[
+                  const SizedBox(width: 6),
+                  const Text('투명', style: TextStyle(fontSize: 12)),
+                ],
               ],
             ),
           ),

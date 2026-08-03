@@ -41,11 +41,12 @@ class FirestoreStickyRepository implements StickyRepository {
   }
 
   @override
-  Future<Sticky> addSticky({int colorIndex = 0}) async {
+  Future<Sticky> addSticky({int colorIndex = 0, String title = ''}) async {
     final DateTime now = _clock();
     final String id = _uuid.v4();
     final int order = now.millisecondsSinceEpoch;
     await _stickies.doc(id).set(<String, dynamic>{
+      'title': title,
       'colorIndex': colorIndex,
       'sortOrder': order,
       'createdAt': Timestamp.fromDate(now),
@@ -54,6 +55,7 @@ class FirestoreStickyRepository implements StickyRepository {
     });
     return Sticky(
       id: id,
+      title: title,
       colorIndex: colorIndex,
       sortOrder: order,
       createdAt: now,
@@ -65,6 +67,13 @@ class FirestoreStickyRepository implements StickyRepository {
   Future<void> setStickyColor(String stickyId, int colorIndex) =>
       _stickies.doc(stickyId).update(<String, dynamic>{
         'colorIndex': colorIndex,
+        'updatedAt': Timestamp.fromDate(_clock()),
+      });
+
+  @override
+  Future<void> setStickyTitle(String stickyId, String title) =>
+      _stickies.doc(stickyId).update(<String, dynamic>{
+        'title': title,
         'updatedAt': Timestamp.fromDate(_clock()),
       });
 
@@ -148,6 +157,7 @@ class FirestoreStickyRepository implements StickyRepository {
     final Map<String, dynamic> data = doc.data() ?? <String, dynamic>{};
     final Sticky sticky = Sticky(
       id: doc.id,
+      title: data['title'] as String? ?? '',
       colorIndex: (data['colorIndex'] as num?)?.toInt() ?? 0,
       sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
       createdAt: _toDate(data['createdAt']),

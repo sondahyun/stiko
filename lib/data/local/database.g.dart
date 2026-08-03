@@ -17,6 +17,16 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _colorIndexMeta = const VerificationMeta(
     'colorIndex',
   );
@@ -66,6 +76,7 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    title,
     colorIndex,
     sortOrder,
     createdAt,
@@ -87,6 +98,12 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
     }
     if (data.containsKey('color_index')) {
       context.handle(
@@ -129,6 +146,10 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
       colorIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}color_index'],
@@ -156,12 +177,14 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
 
 class Sticky extends DataClass implements Insertable<Sticky> {
   final String id;
+  final String title;
   final int colorIndex;
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Sticky({
     required this.id,
+    required this.title,
     required this.colorIndex,
     required this.sortOrder,
     required this.createdAt,
@@ -171,6 +194,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
     map['color_index'] = Variable<int>(colorIndex);
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -181,6 +205,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   StickiesCompanion toCompanion(bool nullToAbsent) {
     return StickiesCompanion(
       id: Value(id),
+      title: Value(title),
       colorIndex: Value(colorIndex),
       sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
@@ -195,6 +220,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Sticky(
       id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
       colorIndex: serializer.fromJson<int>(json['colorIndex']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -206,6 +232,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
       'colorIndex': serializer.toJson<int>(colorIndex),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -215,12 +242,14 @@ class Sticky extends DataClass implements Insertable<Sticky> {
 
   Sticky copyWith({
     String? id,
+    String? title,
     int? colorIndex,
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Sticky(
     id: id ?? this.id,
+    title: title ?? this.title,
     colorIndex: colorIndex ?? this.colorIndex,
     sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
@@ -229,6 +258,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   Sticky copyWithCompanion(StickiesCompanion data) {
     return Sticky(
       id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
       colorIndex: data.colorIndex.present
           ? data.colorIndex.value
           : this.colorIndex,
@@ -242,6 +272,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   String toString() {
     return (StringBuffer('Sticky(')
           ..write('id: $id, ')
+          ..write('title: $title, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
@@ -252,12 +283,13 @@ class Sticky extends DataClass implements Insertable<Sticky> {
 
   @override
   int get hashCode =>
-      Object.hash(id, colorIndex, sortOrder, createdAt, updatedAt);
+      Object.hash(id, title, colorIndex, sortOrder, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Sticky &&
           other.id == this.id &&
+          other.title == this.title &&
           other.colorIndex == this.colorIndex &&
           other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
@@ -266,6 +298,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
 
 class StickiesCompanion extends UpdateCompanion<Sticky> {
   final Value<String> id;
+  final Value<String> title;
   final Value<int> colorIndex;
   final Value<int> sortOrder;
   final Value<DateTime> createdAt;
@@ -273,6 +306,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   final Value<int> rowid;
   const StickiesCompanion({
     this.id = const Value.absent(),
+    this.title = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -281,6 +315,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   });
   StickiesCompanion.insert({
     required String id,
+    this.title = const Value.absent(),
     this.colorIndex = const Value.absent(),
     this.sortOrder = const Value.absent(),
     required DateTime createdAt,
@@ -291,6 +326,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
        updatedAt = Value(updatedAt);
   static Insertable<Sticky> custom({
     Expression<String>? id,
+    Expression<String>? title,
     Expression<int>? colorIndex,
     Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
@@ -299,6 +335,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (title != null) 'title': title,
       if (colorIndex != null) 'color_index': colorIndex,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
@@ -309,6 +346,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
 
   StickiesCompanion copyWith({
     Value<String>? id,
+    Value<String>? title,
     Value<int>? colorIndex,
     Value<int>? sortOrder,
     Value<DateTime>? createdAt,
@@ -317,6 +355,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   }) {
     return StickiesCompanion(
       id: id ?? this.id,
+      title: title ?? this.title,
       colorIndex: colorIndex ?? this.colorIndex,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
@@ -330,6 +369,9 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
     }
     if (colorIndex.present) {
       map['color_index'] = Variable<int>(colorIndex.value);
@@ -353,6 +395,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   String toString() {
     return (StringBuffer('StickiesCompanion(')
           ..write('id: $id, ')
+          ..write('title: $title, ')
           ..write('colorIndex: $colorIndex, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
@@ -852,6 +895,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$StickiesTableCreateCompanionBuilder =
     StickiesCompanion Function({
       required String id,
+      Value<String> title,
       Value<int> colorIndex,
       Value<int> sortOrder,
       required DateTime createdAt,
@@ -861,6 +905,7 @@ typedef $$StickiesTableCreateCompanionBuilder =
 typedef $$StickiesTableUpdateCompanionBuilder =
     StickiesCompanion Function({
       Value<String> id,
+      Value<String> title,
       Value<int> colorIndex,
       Value<int> sortOrder,
       Value<DateTime> createdAt,
@@ -903,6 +948,11 @@ class $$StickiesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -966,6 +1016,11 @@ class $$StickiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get colorIndex => $composableBuilder(
     column: $table.colorIndex,
     builder: (column) => ColumnOrderings(column),
@@ -998,6 +1053,9 @@ class $$StickiesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
 
   GeneratedColumn<int> get colorIndex => $composableBuilder(
     column: $table.colorIndex,
@@ -1068,6 +1126,7 @@ class $$StickiesTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
                 Value<int> colorIndex = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -1075,6 +1134,7 @@ class $$StickiesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => StickiesCompanion(
                 id: id,
+                title: title,
                 colorIndex: colorIndex,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
@@ -1084,6 +1144,7 @@ class $$StickiesTableTableManager
           createCompanionCallback:
               ({
                 required String id,
+                Value<String> title = const Value.absent(),
                 Value<int> colorIndex = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,
@@ -1091,6 +1152,7 @@ class $$StickiesTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => StickiesCompanion.insert(
                 id: id,
+                title: title,
                 colorIndex: colorIndex,
                 sortOrder: sortOrder,
                 createdAt: createdAt,

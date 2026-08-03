@@ -24,7 +24,7 @@ class StickyToolbar extends ConsumerWidget {
 
     // Leave room for the macOS traffic-light buttons on the left.
     final double leftInset =
-        defaultTargetPlatform == TargetPlatform.macOS ? 72 : 12;
+        defaultTargetPlatform == TargetPlatform.macOS ? 88 : 12;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

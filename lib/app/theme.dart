@@ -41,6 +41,7 @@ class StickyColors {
     Color(0xFF9BF6FF), // sky
     Color(0xFFBDB2FF), // lavender
     Color(0xFFFFC6FF), // pink
+    Color(0x00FFFFFF), // transparent
   ];
 
   /// Returns a stable palette color for the given [index].

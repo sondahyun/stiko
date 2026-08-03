@@ -10,8 +10,9 @@ import 'local/database.dart';
 abstract interface class StickyRepository {
   Stream<List<StickyWithTodos>> watchBoard();
 
-  Future<Sticky> addSticky({int colorIndex});
+  Future<Sticky> addSticky({int colorIndex, String title});
   Future<void> setStickyColor(String stickyId, int colorIndex);
+  Future<void> setStickyTitle(String stickyId, String title);
   Future<void> deleteSticky(String stickyId);
   Future<void> reorderStickies(List<Sticky> ordered);
 
@@ -38,13 +39,14 @@ class LocalStickyRepository implements StickyRepository {
   Stream<List<StickyWithTodos>> watchBoard() => _db.watchBoard();
 
   @override
-  Future<Sticky> addSticky({int colorIndex = 0}) async {
+  Future<Sticky> addSticky({int colorIndex = 0, String title = ''}) async {
     final DateTime now = _clock();
     final String id = _uuid.v4();
     final int order = now.millisecondsSinceEpoch;
     await _db.createSticky(
       StickiesCompanion.insert(
         id: id,
+        title: Value(title),
         colorIndex: Value(colorIndex),
         sortOrder: Value(order),
         createdAt: now,
@@ -53,6 +55,7 @@ class LocalStickyRepository implements StickyRepository {
     );
     return Sticky(
       id: id,
+      title: title,
       colorIndex: colorIndex,
       sortOrder: order,
       createdAt: now,
@@ -63,6 +66,10 @@ class LocalStickyRepository implements StickyRepository {
   @override
   Future<void> setStickyColor(String stickyId, int colorIndex) =>
       _db.updateStickyColor(stickyId, colorIndex, _clock());
+
+  @override
+  Future<void> setStickyTitle(String stickyId, String title) =>
+      _db.updateStickyTitle(stickyId, title, _clock());
 
   @override
   Future<void> deleteSticky(String stickyId) => _db.deleteSticky(stickyId);

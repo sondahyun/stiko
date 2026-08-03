@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../app/theme.dart';
 import '../../../core/platform_utils.dart';
+import '../../../data/local/database.dart';
 import '../../sticky/application/sticky_window.dart';
 import '../../sticky/presentation/sticky_toolbar.dart';
 import '../application/board_providers.dart';
 import 'widgets/sticky_note_card.dart';
 
-/// Entry screen: a board of sticky notes. Desktop wraps it in the compact
-/// sticky window chrome; mobile uses a normal app bar.
+/// Entry screen: the sticky board. Desktop shows a compact title list inside
+/// the sticky window chrome; mobile shows full editable cards.
 class BoardScreen extends ConsumerWidget {
   const BoardScreen({super.key});
 
@@ -27,7 +27,7 @@ class _MobileBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('stiko')),
-      body: const _BoardBody(),
+      body: const _BoardBody(desktop: false),
       floatingActionButton: const _AddStickyButton(),
     );
   }
@@ -45,7 +45,7 @@ class _DesktopBoard extends ConsumerWidget {
       body: Column(
         children: <Widget>[
           const StickyToolbar(),
-          if (!collapsed) const Expanded(child: _BoardBody()),
+          if (!collapsed) const Expanded(child: _BoardBody(desktop: true)),
         ],
       ),
       floatingActionButton:
@@ -62,10 +62,9 @@ class _AddStickyButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     Future<void> add() async {
-      final int count = ref.read(boardStreamProvider).valueOrNull?.length ?? 0;
-      await ref.read(stickyRepositoryProvider).addSticky(
-            colorIndex: count % StickyColors.palette.length,
-          );
+      final String? title = await _promptTitle(context);
+      if (title == null) return;
+      await ref.read(stickyRepositoryProvider).addSticky(title: title);
     }
 
     if (small) {
@@ -82,8 +81,44 @@ class _AddStickyButton extends ConsumerWidget {
   }
 }
 
+/// Asks for a sticky title. Returns null if cancelled.
+Future<String?> _promptTitle(BuildContext context) async {
+  final TextEditingController controller = TextEditingController();
+  final String? result = await showDialog<String>(
+    context: context,
+    builder: (BuildContext ctx) => AlertDialog(
+      title: const Text('새 스티커'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        decoration: const InputDecoration(
+          labelText: '제목',
+          hintText: '예: 오늘 할 일',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (String v) => Navigator.of(ctx).pop(v.trim()),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+          child: const Text('만들기'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  return result;
+}
+
 class _BoardBody extends ConsumerWidget {
-  const _BoardBody();
+  const _BoardBody({required this.desktop});
+
+  final bool desktop;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -91,7 +126,7 @@ class _BoardBody extends ConsumerWidget {
 
     return boardAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(
+      error: (Object error, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text('불러오지 못했습니다\n$error', textAlign: TextAlign.center),
@@ -99,14 +134,29 @@ class _BoardBody extends ConsumerWidget {
       ),
       data: (board) {
         if (board.isEmpty) return const _EmptyBoard();
-        return ListView.builder(
+        return ReorderableListView.builder(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+          buildDefaultDragHandles: false,
           itemCount: board.length,
-          itemBuilder: (context, index) {
+          onReorderItem: (int oldIndex, int newIndex) {
+            final List<StickyWithTodos> reordered = <StickyWithTodos>[...board];
+            final StickyWithTodos moved = reordered.removeAt(oldIndex);
+            reordered.insert(newIndex, moved);
+            ref.read(stickyRepositoryProvider).reorderStickies(
+                  reordered.map((StickyWithTodos e) => e.sticky).toList(),
+                );
+          },
+          itemBuilder: (BuildContext context, int index) {
             final item = board[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: StickyNoteCard(key: ValueKey(item.sticky.id), data: item),
+            return ReorderableDelayedDragStartListener(
+              key: ValueKey<String>('sticky-${item.sticky.id}'),
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: desktop
+                    ? StickyTitleRow(data: item)
+                    : StickyNoteCard(data: item),
+              ),
             );
           },
         );
@@ -122,7 +172,8 @@ class _EmptyBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
+      builder: (BuildContext context, BoxConstraints constraints) =>
+          SingleChildScrollView(
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: Center(

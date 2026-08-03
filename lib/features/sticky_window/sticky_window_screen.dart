@@ -1,4 +1,5 @@
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -54,6 +55,7 @@ class StickyWindowScreen extends StatefulWidget {
 
 class _StickyWindowScreenState extends State<StickyWindowScreen> {
   late final FirestoreStickyRepository _repo;
+  late final Stream<StickyWithTodos?> _stickyStream;
   final TextEditingController _addController = TextEditingController();
   final FocusNode _addFocus = FocusNode();
 
@@ -65,6 +67,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   void initState() {
     super.initState();
     _repo = FirestoreStickyRepository(uid: widget.uid);
+    _stickyStream = _repo.watchSticky(widget.stickyId);
   }
 
   @override
@@ -103,13 +106,14 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: StreamBuilder<StickyWithTodos?>(
-        stream: _repo.watchSticky(widget.stickyId),
+        stream: _stickyStream,
         builder: (BuildContext context, AsyncSnapshot<StickyWithTodos?> snap) {
           final StickyWithTodos? data = snap.data;
           final Color color = StickyColors.at(data?.sticky.colorIndex ?? 0);
-          final String title = (data != null && data.todos.isNotEmpty)
-              ? data.todos.first.content
-              : '새 스티커';
+          final String title =
+              (data != null && data.sticky.title.trim().isNotEmpty)
+                  ? data.sticky.title
+                  : '새 스티커';
           return Container(
             color: color,
             child: Column(
@@ -139,7 +143,10 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
       child: Container(
         height: 44,
         color: Colors.black.withValues(alpha: 0.06),
-        padding: const EdgeInsets.only(left: 12, right: 4),
+        padding: EdgeInsets.only(
+          left: defaultTargetPlatform == TargetPlatform.macOS ? 88 : 12,
+          right: 4,
+        ),
         child: Row(
           children: <Widget>[
             Expanded(

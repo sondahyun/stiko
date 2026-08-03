@@ -11,10 +11,11 @@ import 'package:stiko/features/auth/application/auth_providers.dart';
 import 'package:stiko/features/auth/application/auth_service.dart';
 import 'package:stiko/features/board/application/board_providers.dart';
 
-Sticky _sticky({String id = 's1', int colorIndex = 0}) {
+Sticky _sticky({String id = 's1', int colorIndex = 0, String title = ''}) {
   final DateTime now = DateTime(2026, 1, 1);
   return Sticky(
     id: id,
+    title: title,
     colorIndex: colorIndex,
     sortOrder: 0,
     createdAt: now,
@@ -52,8 +53,8 @@ class FakeStickyRepository implements StickyRepository {
       Stream<List<StickyWithTodos>>.value(_board);
 
   @override
-  Future<Sticky> addSticky({int colorIndex = 0}) async =>
-      _sticky(id: 'new', colorIndex: colorIndex);
+  Future<Sticky> addSticky({int colorIndex = 0, String title = ''}) async =>
+      _sticky(id: 'new', colorIndex: colorIndex, title: title);
 
   @override
   Future<Todo> addTodo(String stickyId, String content) async =>
@@ -74,6 +75,9 @@ class FakeStickyRepository implements StickyRepository {
 
   @override
   Future<void> setStickyColor(String stickyId, int colorIndex) async {}
+
+  @override
+  Future<void> setStickyTitle(String stickyId, String title) async {}
 
   @override
   Future<void> reorderStickies(List<Sticky> ordered) async {}

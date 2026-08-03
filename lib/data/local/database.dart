@@ -6,6 +6,7 @@ part 'database.g.dart';
 /// A sticky note: a colored container that holds a list of todos.
 class Stickies extends Table {
   TextColumn get id => text()();
+  TextColumn get title => text().withDefault(const Constant(''))();
   IntColumn get colorIndex => integer().withDefault(const Constant(0))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
@@ -44,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'stiko'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -90,6 +91,12 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateStickyColor(String id, int colorIndex, DateTime now) {
     return (update(stickies)..where((t) => t.id.equals(id))).write(
       StickiesCompanion(colorIndex: Value(colorIndex), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> updateStickyTitle(String id, String title, DateTime now) {
+    return (update(stickies)..where((t) => t.id.equals(id))).write(
+      StickiesCompanion(title: Value(title), updatedAt: Value(now)),
     );
   }
 
