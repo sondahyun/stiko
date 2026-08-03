@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stiko/app/app.dart';
 import 'package:stiko/data/local/database.dart';
 import 'package:stiko/data/sticky_repository.dart';
+import 'package:stiko/features/auth/application/auth_providers.dart';
+import 'package:stiko/features/auth/application/auth_service.dart';
 import 'package:stiko/features/board/application/board_providers.dart';
 
 Sticky _sticky({String id = 's1', int colorIndex = 0}) {
@@ -42,17 +46,14 @@ class FakeStickyRepository implements StickyRepository {
 
   final List<StickyWithTodos> _board;
   final List<(String id, bool isDone)> toggled = <(String, bool)>[];
-  int addStickyCount = 0;
 
   @override
   Stream<List<StickyWithTodos>> watchBoard() =>
       Stream<List<StickyWithTodos>>.value(_board);
 
   @override
-  Future<Sticky> addSticky({int colorIndex = 0}) async {
-    addStickyCount++;
-    return _sticky(id: 'new', colorIndex: colorIndex);
-  }
+  Future<Sticky> addSticky({int colorIndex = 0}) async =>
+      _sticky(id: 'new', colorIndex: colorIndex);
 
   @override
   Future<Todo> addTodo(String stickyId, String content) async =>
@@ -81,6 +82,41 @@ class FakeStickyRepository implements StickyRepository {
   Future<void> reorderTodos(List<Todo> ordered) async {}
 }
 
+/// In-memory fake auth. Pass a [user] to start signed in.
+class FakeAuthService implements AuthService {
+  FakeAuthService({this.user});
+
+  AppUser? user;
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  @override
+  AppUser? get currentUser => user;
+
+  @override
+  Stream<AppUser?> authStateChanges() async* {
+    yield user;
+    yield* _changes.stream.map((_) => user);
+  }
+
+  @override
+  Future<void> signIn({required String email, required String password}) async {
+    user = AppUser(uid: 'u', email: email);
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> signUp({required String email, required String password}) async {
+    user = AppUser(uid: 'u', email: email);
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> signOut() async {
+    user = null;
+    _changes.add(null);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -88,15 +124,38 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  Widget bootstrap(StickyRepository repo) {
+  Widget bootstrap(StickyRepository repo, {AuthService? auth}) {
     return ProviderScope(
-      overrides: <Override>[stickyRepositoryProvider.overrideWithValue(repo)],
+      overrides: <Override>[
+        stickyRepositoryProvider.overrideWithValue(repo),
+        authServiceProvider.overrideWithValue(
+          auth ??
+              FakeAuthService(
+                user: const AppUser(uid: 'u', email: 't@t.com'),
+              ),
+        ),
+      ],
       child: const StikoApp(),
     );
   }
 
-  testWidgets('스티커가 없으면 빈 안내가 보인다', (tester) async {
-    await tester.pumpWidget(bootstrap(FakeStickyRepository(const <StickyWithTodos>[])));
+  testWidgets('로그인하지 않으면 로그인 화면으로 이동한다', (tester) async {
+    await tester.pumpWidget(
+      bootstrap(
+        FakeStickyRepository(const <StickyWithTodos>[]),
+        auth: FakeAuthService(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, '로그인'), findsOneWidget);
+    expect(find.text('스티커가 없습니다'), findsNothing);
+  });
+
+  testWidgets('로그인 상태에서 스티커가 없으면 빈 안내가 보인다', (tester) async {
+    await tester.pumpWidget(
+      bootstrap(FakeStickyRepository(const <StickyWithTodos>[])),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('스티커가 없습니다'), findsOneWidget);
@@ -110,7 +169,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('장보기'), findsOneWidget);
-    expect(find.text('스티커가 없습니다'), findsNothing);
   });
 
   testWidgets('체크박스를 누르면 toggleTodo가 호출된다', (tester) async {

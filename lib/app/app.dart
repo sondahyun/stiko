@@ -12,6 +12,7 @@ class StikoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeMode themeMode = ref.watch(themeModeProvider);
+    final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
       title: 'stiko',
@@ -19,7 +20,7 @@ class StikoApp extends ConsumerWidget {
       theme: StikoTheme.light(),
       darkTheme: StikoTheme.dark(),
       themeMode: themeMode,
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }

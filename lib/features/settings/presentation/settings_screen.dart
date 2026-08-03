@@ -2,19 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/application/theme_controller.dart';
+import '../../auth/application/auth_providers.dart';
 
-/// App settings: theme mode selection and basic app info.
+/// App settings: account, theme mode selection, and basic app info.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeMode mode = ref.watch(themeModeProvider);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final email = ref.watch(authStateProvider).valueOrNull?.email;
 
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
       body: ListView(
         children: <Widget>[
+          const _SectionHeader('계정'),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: Text(email ?? '로그인 정보 없음'),
+          ),
+          ListTile(
+            leading: Icon(Icons.logout, color: scheme.error),
+            title: Text('로그아웃', style: TextStyle(color: scheme.error)),
+            onTap: () => ref.read(authServiceProvider).signOut(),
+          ),
+          const Divider(),
           const _SectionHeader('테마'),
           _ThemeTile(label: '시스템 설정 따르기', value: ThemeMode.system, current: mode),
           _ThemeTile(label: '라이트', value: ThemeMode.light, current: mode),
