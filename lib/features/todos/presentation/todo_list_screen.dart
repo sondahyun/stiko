@@ -1,14 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/platform_utils.dart';
 import '../../../data/local/database.dart';
+import '../../sticky/application/sticky_window.dart';
+import '../../sticky/presentation/sticky_toolbar.dart';
 import '../application/todo_providers.dart';
 import 'widgets/todo_card.dart';
 import 'widgets/todo_editor_sheet.dart';
 
-/// Main screen listing every todo as a sticky note.
+/// Entry screen. Renders a compact sticky window on desktop and a regular
+/// scaffold on mobile, sharing the same todo body.
 class TodoListScreen extends ConsumerWidget {
   const TodoListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (isDesktop) return const _DesktopStickyScaffold();
+    return const _MobileScaffold();
+  }
+}
+
+class _MobileScaffold extends ConsumerWidget {
+  const _MobileScaffold();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,45 +43,81 @@ class TodoListScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: todosAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              '할 일을 불러오지 못했습니다\n$error',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        data: (todos) {
-          if (todos.isEmpty) return const _EmptyState();
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-            itemCount: todos.length,
-            itemBuilder: (context, index) {
-              final Todo todo = todos[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: TodoCard(
-                  todo: todo,
-                  onToggle: (value) => ref
-                      .read(todoRepositoryProvider)
-                      .toggleDone(todo.id, value),
-                  onTap: () => showTodoEditor(context, initial: todo),
-                  onDelete: () =>
-                      ref.read(todoRepositoryProvider).deleteTodo(todo.id),
-                ),
-              );
-            },
-          );
-        },
-      ),
+      body: const _TodoBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showTodoEditor(context),
         icon: const Icon(Icons.add),
         label: const Text('할 일'),
       ),
+    );
+  }
+}
+
+class _DesktopStickyScaffold extends ConsumerWidget {
+  const _DesktopStickyScaffold();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool collapsed =
+        ref.watch(stickyWindowControllerProvider.select((s) => s.collapsed));
+
+    return Scaffold(
+      body: Column(
+        children: <Widget>[
+          const StickyToolbar(),
+          if (!collapsed) const Expanded(child: _TodoBody()),
+        ],
+      ),
+      floatingActionButton: collapsed
+          ? null
+          : FloatingActionButton.small(
+              onPressed: () => showTodoEditor(context),
+              child: const Icon(Icons.add),
+            ),
+    );
+  }
+}
+
+/// Shared list body: loading / error / empty / list.
+class _TodoBody extends ConsumerWidget {
+  const _TodoBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final todosAsync = ref.watch(todosStreamProvider);
+
+    return todosAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '할 일을 불러오지 못했습니다\n$error',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+      data: (todos) {
+        if (todos.isEmpty) return const _EmptyState();
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+          itemCount: todos.length,
+          itemBuilder: (context, index) {
+            final Todo todo = todos[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: TodoCard(
+                todo: todo,
+                onToggle: (value) =>
+                    ref.read(todoRepositoryProvider).toggleDone(todo.id, value),
+                onTap: () => showTodoEditor(context, initial: todo),
+                onDelete: () =>
+                    ref.read(todoRepositoryProvider).deleteTodo(todo.id),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
