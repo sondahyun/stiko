@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="stiko"
+        android:textColor="#8A7A2E"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:paddingBottom="6dp" />
+
+    <TextView
+        android:id="@+id/empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="할 일 없음"
+        android:textColor="#9E9E9E"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <LinearLayout android:id="@+id/row0" style="@style/StikoWidgetRow">
+        <ImageView android:id="@+id/circle0" style="@style/StikoWidgetCircle" />
+        <TextView android:id="@+id/text0" style="@style/StikoWidgetText" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row1" style="@style/StikoWidgetRow">
+        <ImageView android:id="@+id/circle1" style="@style/StikoWidgetCircle" />
+        <TextView android:id="@+id/text1" style="@style/StikoWidgetText" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row2" style="@style/StikoWidgetRow">
+        <ImageView android:id="@+id/circle2" style="@style/StikoWidgetCircle" />
+        <TextView android:id="@+id/text2" style="@style/StikoWidgetText" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row3" style="@style/StikoWidgetRow">
+        <ImageView android:id="@+id/circle3" style="@style/StikoWidgetCircle" />
+        <TextView android:id="@+id/text3" style="@style/StikoWidgetText" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row4" style="@style/StikoWidgetRow">
+        <ImageView android:id="@+id/circle4" style="@style/StikoWidgetCircle" />
+        <TextView android:id="@+id/text4" style="@style/StikoWidgetText" />
+    </LinearLayout>
+</LinearLayout>

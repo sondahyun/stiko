@@ -30,6 +30,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Home screen todo widget (also usable on the Samsung lock screen via
+             Good Lock). Handles its own toggle taps. -->
+        <receiver
+            android:name=".StikoWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="io.github.sondahyun.stiko.WIDGET_TOGGLE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stiko_widget_info" />
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
