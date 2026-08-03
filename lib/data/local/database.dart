@@ -55,6 +55,19 @@ class AppDatabase extends _$AppDatabase {
   Future<int> deleteCompleted() =>
       (delete(todos)..where((t) => t.isDone.equals(true))).go();
 
+  /// Rewrites [sortOrder] so the stored order matches [orderedIds] top down.
+  Future<void> reorderByIds(List<String> orderedIds) async {
+    await batch((batch) {
+      for (int i = 0; i < orderedIds.length; i++) {
+        batch.update(
+          todos,
+          TodosCompanion(sortOrder: Value(i)),
+          where: (t) => t.id.equals(orderedIds[i]),
+        );
+      }
+    });
+  }
+
   SimpleSelectStatement<$TodosTable, Todo> _ordered() {
     return select(todos)
       ..orderBy([

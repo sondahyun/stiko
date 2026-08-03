@@ -66,6 +66,20 @@ void main() {
     expect(remaining.first.title, '진행중');
   });
 
+  test('reorder가 저장 순서를 바꾼다', () async {
+    final Todo a = await repo.addTodo(title: 'A');
+    final Todo b = await repo.addTodo(title: 'B');
+    final Todo c = await repo.addTodo(title: 'C');
+
+    await repo.reorder(<Todo>[c, a, b]);
+
+    final List<Todo> ordered = await repo.getTodos();
+    expect(
+      ordered.map((Todo t) => t.title).toList(),
+      <String>['C', 'A', 'B'],
+    );
+  });
+
   test('watchTodos가 추가를 방출한다', () {
     expectLater(
       repo.watchTodos(),

@@ -106,20 +106,32 @@ class _TodoBody extends ConsumerWidget {
       ),
       data: (todos) {
         if (todos.isEmpty) return const _EmptyState();
-        return ListView.builder(
+        return ReorderableListView.builder(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+          buildDefaultDragHandles: false,
           itemCount: todos.length,
+          onReorderItem: (oldIndex, newIndex) {
+            final List<Todo> reordered = <Todo>[...todos];
+            final Todo moved = reordered.removeAt(oldIndex);
+            reordered.insert(newIndex, moved);
+            ref.read(todoRepositoryProvider).reorder(reordered);
+          },
           itemBuilder: (context, index) {
             final Todo todo = todos[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: TodoCard(
-                todo: todo,
-                onToggle: (value) =>
-                    ref.read(todoRepositoryProvider).toggleDone(todo.id, value),
-                onTap: () => showTodoEditor(context, initial: todo),
-                onDelete: () =>
-                    ref.read(todoRepositoryProvider).deleteTodo(todo.id),
+            return ReorderableDelayedDragStartListener(
+              key: ValueKey<String>('item-${todo.id}'),
+              index: index,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: TodoCard(
+                  todo: todo,
+                  onToggle: (value) => ref
+                      .read(todoRepositoryProvider)
+                      .toggleDone(todo.id, value),
+                  onTap: () => showTodoEditor(context, initial: todo),
+                  onDelete: () =>
+                      ref.read(todoRepositoryProvider).deleteTodo(todo.id),
+                ),
               ),
             );
           },

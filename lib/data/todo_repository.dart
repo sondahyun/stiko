@@ -21,6 +21,9 @@ abstract interface class TodoRepository {
   Future<void> toggleDone(String id, bool isDone);
   Future<void> deleteTodo(String id);
   Future<void> clearCompleted();
+
+  /// Persists a new manual ordering (top to bottom).
+  Future<void> reorder(List<Todo> orderedTodos);
 }
 
 /// Drift-backed [TodoRepository].
@@ -98,4 +101,8 @@ class LocalTodoRepository implements TodoRepository {
 
   @override
   Future<void> clearCompleted() => _db.deleteCompleted();
+
+  @override
+  Future<void> reorder(List<Todo> orderedTodos) =>
+      _db.reorderByIds(<String>[for (final Todo t in orderedTodos) t.id]);
 }

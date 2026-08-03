@@ -67,6 +67,9 @@ class FakeTodoRepository implements TodoRepository {
 
   @override
   Future<void> clearCompleted() async {}
+
+  @override
+  Future<void> reorder(List<Todo> orderedTodos) async {}
 }
 
 void main() {
