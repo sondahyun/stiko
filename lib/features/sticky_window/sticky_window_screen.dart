@@ -149,23 +149,23 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   Future<void> _showStyle(int colorIndex, double opacity) {
     int localColor = colorIndex;
     double localOpacity = opacity;
-    return showModalBottomSheet<void>(
+    return showDialog<void>(
       context: context,
-      showDragHandle: true,
       builder: (BuildContext ctx) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setSheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        builder: (BuildContext ctx, StateSetter setSheet) => AlertDialog(
+          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+          content: SizedBox(
+            width: 260,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text('색상',
                     style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Wrap(
-                  spacing: 14,
-                  runSpacing: 14,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: <Widget>[
                     for (int i = 0; i < StickyColors.palette.length; i++)
                       GestureDetector(
@@ -174,8 +174,8 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
                           _repo.setStickyColor(widget.stickyId, i);
                         },
                         child: Container(
-                          width: 36,
-                          height: 36,
+                          width: 30,
+                          height: 30,
                           decoration: BoxDecoration(
                             color: StickyColors.at(i),
                             shape: BoxShape.circle,
@@ -188,13 +188,13 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
                           ),
                           child: i == localColor
                               ? const Icon(Icons.check,
-                                  size: 18, color: Colors.black87)
+                                  size: 15, color: Colors.black87)
                               : null,
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 Row(
                   children: <Widget>[
                     const Text('투명도',
@@ -215,6 +215,12 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
               ],
             ),
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
         ),
       ),
     );
