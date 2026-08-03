@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../core/platform_utils.dart';
 import '../../../data/local/database.dart';
 import '../../sticky/application/sticky_window.dart';
@@ -41,6 +43,11 @@ class _MobileScaffold extends ConsumerWidget {
               onPressed: () =>
                   ref.read(todoRepositoryProvider).clearCompleted(),
             ),
+          IconButton(
+            tooltip: '설정',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push(StikoRoutes.settings),
+          ),
         ],
       ),
       body: const _TodoBody(),

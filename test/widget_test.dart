@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stiko/app/app.dart';
 import 'package:stiko/data/local/database.dart';
 import 'package:stiko/data/todo_repository.dart';
@@ -69,6 +70,12 @@ class FakeTodoRepository implements TodoRepository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
   Widget bootstrap(TodoRepository repo) {
     return ProviderScope(
       overrides: <Override>[todoRepositoryProvider.overrideWithValue(repo)],

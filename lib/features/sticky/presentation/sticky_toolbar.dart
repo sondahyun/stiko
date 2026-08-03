@@ -1,14 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../../app/router.dart';
 import '../application/sticky_window.dart';
 
 /// Draggable toolbar at the top of the desktop sticky window.
 ///
 /// Drag it to move the window, double-tap to collapse, and use the buttons to
-/// pin (always on top), collapse / expand, or close.
+/// open settings, pin (always on top), collapse / expand, or close.
 class StickyToolbar extends ConsumerWidget {
   const StickyToolbar({super.key});
 
@@ -42,6 +44,13 @@ class StickyToolbar extends ConsumerWidget {
               ),
             ),
             const Spacer(),
+            IconButton(
+              tooltip: '설정',
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => context.push(StikoRoutes.settings),
+            ),
             IconButton(
               tooltip: windowState.alwaysOnTop ? '항상 위 해제' : '항상 위 고정',
               iconSize: 18,
