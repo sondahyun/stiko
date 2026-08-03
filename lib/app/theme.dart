@@ -35,12 +35,12 @@ class StickyColors {
   const StickyColors._();
 
   static const List<Color> palette = <Color>[
-    Color(0xFFFFF3B0), // yellow
-    Color(0xFFFFD6A5), // peach
-    Color(0xFFCAFFBF), // mint
-    Color(0xFF9BF6FF), // sky
-    Color(0xFFBDB2FF), // lavender
-    Color(0xFFFFC6FF), // pink
+    Color(0xFFFEF3BE), // yellow
+    Color(0xFFFCE1C8), // peach
+    Color(0xFFDBF4D2), // mint
+    Color(0xFFCFEEF8), // sky
+    Color(0xFFE0DBF8), // lavender
+    Color(0xFFF9DCF1), // pink
   ];
 
   /// Smallest opacity the slider allows, so a sticky never vanishes entirely.

@@ -234,8 +234,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
           final int colorIndex = data?.sticky.colorIndex ?? 0;
           final double opacity = data?.sticky.opacity ?? 1.0;
           final String rawTitle = data?.sticky.title ?? '';
-          final Color color =
-              StickyColors.at(colorIndex).withValues(alpha: opacity);
+          // Whitish frosted glass: lighten the pastel toward white so the
+          // desktop shows through softly (never dark) and text stays readable.
+          final Color frost =
+              Color.lerp(Colors.white, StickyColors.at(colorIndex), 0.7)!;
+          final Color color = frost.withValues(alpha: 0.55 + 0.45 * opacity);
           final String title =
               rawTitle.trim().isNotEmpty ? rawTitle : '새 스티커';
           return Container(

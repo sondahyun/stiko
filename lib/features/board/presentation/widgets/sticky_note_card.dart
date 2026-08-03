@@ -175,11 +175,6 @@ class StickyTitleRow extends ConsumerWidget {
                   icon: const Icon(Icons.open_in_new, color: Colors.black54),
                   onPressed: () => openStickyWindow(ref, data.sticky.id),
                 ),
-              StickyStyleButton(
-                stickyId: data.sticky.id,
-                colorIndex: data.sticky.colorIndex,
-                opacity: data.sticky.opacity,
-              ),
               IconButton(
                 tooltip: '스티커 삭제',
                 iconSize: 18,
