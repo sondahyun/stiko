@@ -5,16 +5,48 @@ import '../../../core/platform_utils.dart';
 import '../../../data/local/database.dart';
 import '../../sticky/application/sticky_window.dart';
 import '../../sticky/presentation/sticky_toolbar.dart';
+import '../../widget/widget_service.dart';
 import '../application/board_providers.dart';
 import 'widgets/sticky_note_card.dart';
 
 /// Entry screen: the sticky board. Desktop shows a compact title list inside
 /// the sticky window chrome; mobile shows full editable cards.
-class BoardScreen extends ConsumerWidget {
+class BoardScreen extends ConsumerStatefulWidget {
   const BoardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BoardScreen> createState() => _BoardScreenState();
+}
+
+class _BoardScreenState extends ConsumerState<BoardScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // On resume, apply any todos the user completed from the widget while the
+    // app was in the background.
+    if (state == AppLifecycleState.resumed) {
+      final List<StickyWithTodos>? board =
+          ref.read(boardStreamProvider).valueOrNull;
+      if (board != null) {
+        WidgetService.sync(board, ref.read(stickyRepositoryProvider));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Keep the home / lock screen widget in sync while the board is open.
     ref.watch(widgetSyncProvider);
     if (isDesktop) return const _DesktopBoard();
