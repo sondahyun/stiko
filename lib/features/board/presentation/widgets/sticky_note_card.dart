@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 
 import '../../../../app/theme.dart';
 import '../../../../data/local/database.dart';
@@ -10,15 +12,56 @@ import '../../../../data/sticky_repository.dart';
 import '../../../auth/application/auth_providers.dart';
 import '../../application/board_providers.dart';
 
-/// Opens the given sticky in its own floating desktop window.
+/// Tracks which sticky is shown in which window so duplicates never open.
+final Map<String, int> _openStickyWindows = <String, int>{};
+final Set<String> _openingStickies = <String>{};
+
+/// Opens the given sticky in its own floating desktop window. If one is already
+/// open for the sticky, brings it to the front instead of creating a duplicate.
 Future<void> openStickyWindow(WidgetRef ref, String stickyId) async {
-  final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
-  final WindowController window = await DesktopMultiWindow.createWindow(
-    jsonEncode(<String, String>{'stickyId': stickyId, 'uid': uid}),
-  );
-  await window.setFrame(const Offset(160, 160) & const Size(300, 360));
-  await window.setTitle('stiko');
-  await window.show();
+  if (_openingStickies.contains(stickyId)) return;
+  _openingStickies.add(stickyId);
+  try {
+    final List<int> openIds = await DesktopMultiWindow.getAllSubWindowIds();
+    final int? existing = _openStickyWindows[stickyId];
+    if (existing != null && openIds.contains(existing)) {
+      await WindowController.fromWindowId(existing).show();
+      return;
+    }
+    final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
+    final WindowController window = await DesktopMultiWindow.createWindow(
+      jsonEncode(<String, String>{'stickyId': stickyId, 'uid': uid}),
+    );
+    _openStickyWindows[stickyId] = window.windowId;
+    const Size winSize = Size(300, 360);
+    await window.setFrame(await _stickyWindowFrame(winSize, openIds.length));
+    await window.setTitle('stiko');
+    await window.show();
+  } finally {
+    _openingStickies.remove(stickyId);
+  }
+}
+
+/// Places a new sticky window near the top-right of the primary display, with a
+/// small cascade so multiple windows stay visible instead of stacking exactly.
+///
+/// macOS positions windows from a bottom-left origin (Cocoa), so a larger `top`
+/// sits higher on screen; Windows and Linux use a top-left origin.
+Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
+  const double margin = 24;
+  const double step = 30;
+  final double cascade = (cascadeIndex % 5) * step;
+  try {
+    final Display display = await screenRetriever.getPrimaryDisplay();
+    final Size screen = display.size;
+    final double left = screen.width - size.width - margin - cascade;
+    final double top = defaultTargetPlatform == TargetPlatform.macOS
+        ? screen.height - size.height - 44 - margin - cascade
+        : margin + cascade;
+    return Offset(left < 0 ? margin : left, top < 0 ? margin : top) & size;
+  } catch (_) {
+    return const Offset(500, 120) & size;
+  }
 }
 
 /// Compact desktop list row: shows only the sticky's title and progress.
@@ -44,6 +87,12 @@ class StickyTitleRow extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => openStickyWindow(ref, data.sticky.id),
+        // Opening a new OS window steals focus mid-tap, which can otherwise
+        // leave the hover/press overlay stuck on the row. Keep it transparent.
+        hoverColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        splashColor: Colors.black12,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
           child: Row(
