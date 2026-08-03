@@ -229,6 +229,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: StreamBuilder<StickyWithTodos?>(
         stream: _stickyStream,
         builder: (BuildContext context, AsyncSnapshot<StickyWithTodos?> snap) {
@@ -236,10 +237,10 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
           final int colorIndex = data?.sticky.colorIndex ?? 0;
           final double opacity = data?.sticky.opacity ?? 1.0;
           final String rawTitle = data?.sticky.title ?? '';
-          // Opaque "frosted" look: lower opacity blends the pastel toward white
-          // for a soft, readable card. (A truly see-through window rendered
-          // dark and let clicks fall through, so we keep it opaque.)
-          final Color color = StickyColors.surface(colorIndex, opacity);
+          // Truly see-through: the OS window is non-opaque (see MainFlutterWindow),
+          // so a lower opacity lets the desktop show behind the sticky.
+          final Color color =
+              StickyColors.at(colorIndex).withValues(alpha: opacity);
           final String title =
               rawTitle.trim().isNotEmpty ? rawTitle : '새 스티커';
           return Container(
