@@ -8,6 +8,7 @@ import '../features/auth/application/auth_providers.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/signup_screen.dart';
 import '../features/board/presentation/board_screen.dart';
+import '../features/board/presentation/sticky_detail_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 
 /// Named route paths used across the app.
@@ -18,6 +19,10 @@ class StikoRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String settings = '/settings';
+  static const String sticky = '/sticky/:id';
+
+  /// Builds the concrete detail path for a given sticky id.
+  static String stickyPath(String id) => '/sticky/$id';
 }
 
 /// Router that gates the app behind authentication: signed-out users are sent
@@ -56,6 +61,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: StikoRoutes.settings,
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: StikoRoutes.sticky,
+        builder: (context, state) =>
+            StickyDetailScreen(stickyId: state.pathParameters['id']!),
       ),
     ],
   );

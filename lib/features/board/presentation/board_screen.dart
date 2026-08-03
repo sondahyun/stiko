@@ -27,7 +27,7 @@ class _MobileBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('stiko')),
-      body: const _BoardBody(desktop: false),
+      body: const _BoardBody(),
       floatingActionButton: const _AddStickyButton(),
     );
   }
@@ -45,7 +45,7 @@ class _DesktopBoard extends ConsumerWidget {
       body: Column(
         children: <Widget>[
           const StickyToolbar(),
-          if (!collapsed) const Expanded(child: _BoardBody(desktop: true)),
+          if (!collapsed) const Expanded(child: _BoardBody()),
         ],
       ),
       floatingActionButton:
@@ -116,9 +116,7 @@ Future<String?> _promptTitle(BuildContext context) async {
 }
 
 class _BoardBody extends ConsumerWidget {
-  const _BoardBody({required this.desktop});
-
-  final bool desktop;
+  const _BoardBody();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -153,9 +151,7 @@ class _BoardBody extends ConsumerWidget {
               index: index,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: desktop
-                    ? StickyTitleRow(data: item)
-                    : StickyNoteCard(data: item),
+                child: StickyTitleRow(data: item),
               ),
             );
           },

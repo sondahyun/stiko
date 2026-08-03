@@ -4,9 +4,12 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
+import '../../../../app/router.dart';
 import '../../../../app/theme.dart';
+import '../../../../core/platform_utils.dart';
 import '../../../../data/local/database.dart';
 import '../../../../data/sticky_repository.dart';
 import '../../../auth/application/auth_providers.dart';
@@ -15,6 +18,16 @@ import '../../application/board_providers.dart';
 /// Tracks which sticky is shown in which window so duplicates never open.
 final Map<String, int> _openStickyWindows = <String, int>{};
 final Set<String> _openingStickies = <String>{};
+
+/// Opens a sticky: on desktop in its own floating window, on mobile by
+/// navigating to a full-screen detail page.
+void openSticky(BuildContext context, WidgetRef ref, String stickyId) {
+  if (isDesktop) {
+    openStickyWindow(ref, stickyId);
+  } else {
+    context.push(StikoRoutes.stickyPath(stickyId));
+  }
+}
 
 /// Opens the given sticky in its own floating desktop window. If one is already
 /// open for the sticky, brings it to the front instead of creating a duplicate.
@@ -64,8 +77,8 @@ Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
   }
 }
 
-/// Compact desktop list row: shows only the sticky's title and progress.
-/// Tap (or the open icon) opens the sticky in its own window.
+/// Compact list row: shows the sticky's label (title, or its first to-do) and
+/// progress. Tapping opens the sticky (a window on desktop, a page on mobile).
 class StickyTitleRow extends ConsumerWidget {
   const StickyTitleRow({super.key, required this.data});
 
@@ -73,20 +86,31 @@ class StickyTitleRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final Color color = StickyColors.at(data.sticky.colorIndex);
-    final String title =
-        data.sticky.title.trim().isNotEmpty ? data.sticky.title : '새 스티커';
-    final int done = data.todos.where((Todo t) => t.isDone).length;
+    // Composite over white so a transparent sticky reads as a plain card
+    // rather than a black one on mobile, where nothing sits behind it.
+    final Color surface =
+        Color.alphaBlend(StickyColors.at(data.sticky.colorIndex), Colors.white);
+    final bool hasTitle = data.sticky.title.trim().isNotEmpty;
+    final String label = hasTitle
+        ? data.sticky.title
+        : (data.todos.isNotEmpty ? data.todos.first.content : '새 스티커');
+    // Preview one to-do under the label; skip the first if it became the label.
+    final List<Todo> previewTodos = hasTitle
+        ? data.todos
+        : (data.todos.length > 1 ? data.todos.sublist(1) : <Todo>[]);
+    final String? previewLine =
+        previewTodos.isNotEmpty ? previewTodos.first.content : null;
+    final bool hasMore = previewTodos.length > 1;
 
     return Material(
-      color: color,
+      color: surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: Colors.black12),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => openStickyWindow(ref, data.sticky.id),
+        onTap: () => openSticky(context, ref, data.sticky.id),
         // Opening a new OS window steals focus mid-tap, which can otherwise
         // leave the hover/press overlay stuck on the row. Keep it transparent.
         hoverColor: Colors.transparent,
@@ -103,7 +127,7 @@ class StickyTitleRow extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Text(
-                      title,
+                      label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -112,25 +136,36 @@ class StickyTitleRow extends ConsumerWidget {
                         fontSize: 15,
                       ),
                     ),
-                    if (data.todos.isNotEmpty)
-                      Text(
-                        '$done / ${data.todos.length} 완료',
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 12,
+                    if (previewLine != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          previewLine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 13,
+                          ),
                         ),
+                      ),
+                    if (hasMore)
+                      const Text(
+                        '...',
+                        style: TextStyle(color: Colors.black38, fontSize: 13),
                       ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: '새 창으로 열기',
-                iconSize: 18,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.open_in_new, color: Colors.black54),
-                onPressed: () => openStickyWindow(ref, data.sticky.id),
-              ),
-              _ColorMenu(
+              if (isDesktop)
+                IconButton(
+                  tooltip: '새 창으로 열기',
+                  iconSize: 18,
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.open_in_new, color: Colors.black54),
+                  onPressed: () => openStickyWindow(ref, data.sticky.id),
+                ),
+              ColorMenu(
                 stickyId: data.sticky.id,
                 current: data.sticky.colorIndex,
               ),
@@ -150,78 +185,18 @@ class StickyTitleRow extends ConsumerWidget {
   }
 }
 
-/// Full sticky note with an inline, editable checklist. Used on mobile.
-class StickyNoteCard extends ConsumerWidget {
-  const StickyNoteCard({super.key, required this.data});
-
-  final StickyWithTodos data;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final Color color = StickyColors.at(data.sticky.colorIndex);
-
-    return Material(
-      color: color,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Colors.black12),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 4, 4, 10),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            if (data.sticky.title.trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 0, 0),
-                child: Text(
-                  data.sticky.title,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            Row(
-              children: <Widget>[
-                const Spacer(),
-                _ColorMenu(
-                  stickyId: data.sticky.id,
-                  current: data.sticky.colorIndex,
-                ),
-                IconButton(
-                  tooltip: '스티커 삭제',
-                  iconSize: 18,
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.delete_outline, color: Colors.black54),
-                  onPressed: () => ref
-                      .read(stickyRepositoryProvider)
-                      .deleteSticky(data.sticky.id),
-                ),
-              ],
-            ),
-            for (final Todo todo in data.todos)
-              _TodoLine(key: ValueKey<String>(todo.id), todo: todo),
-            _AddTodoLine(stickyId: data.sticky.id),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TodoLine extends ConsumerStatefulWidget {
-  const _TodoLine({super.key, required this.todo});
+/// A single editable to-do row: a checkbox plus inline-editable text. Empty
+/// text on blur deletes the to-do.
+class TodoLine extends ConsumerStatefulWidget {
+  const TodoLine({super.key, required this.todo});
 
   final Todo todo;
 
   @override
-  ConsumerState<_TodoLine> createState() => _TodoLineState();
+  ConsumerState<TodoLine> createState() => _TodoLineState();
 }
 
-class _TodoLineState extends ConsumerState<_TodoLine> {
+class _TodoLineState extends ConsumerState<TodoLine> {
   late final TextEditingController _controller;
   late final FocusNode _focus;
 
@@ -294,16 +269,17 @@ class _TodoLineState extends ConsumerState<_TodoLine> {
   }
 }
 
-class _AddTodoLine extends ConsumerStatefulWidget {
-  const _AddTodoLine({required this.stickyId});
+/// The trailing "add a to-do" row: type and submit to append a new to-do.
+class AddTodoLine extends ConsumerStatefulWidget {
+  const AddTodoLine({super.key, required this.stickyId});
 
   final String stickyId;
 
   @override
-  ConsumerState<_AddTodoLine> createState() => _AddTodoLineState();
+  ConsumerState<AddTodoLine> createState() => _AddTodoLineState();
 }
 
-class _AddTodoLineState extends ConsumerState<_AddTodoLine> {
+class _AddTodoLineState extends ConsumerState<AddTodoLine> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focus = FocusNode();
 
@@ -351,8 +327,10 @@ class _AddTodoLineState extends ConsumerState<_AddTodoLine> {
   }
 }
 
-class _ColorMenu extends ConsumerWidget {
-  const _ColorMenu({required this.stickyId, required this.current});
+/// A palette popup for changing a sticky's color. The last entry is the
+/// transparent option.
+class ColorMenu extends ConsumerWidget {
+  const ColorMenu({super.key, required this.stickyId, required this.current});
 
   final String stickyId;
   final int current;

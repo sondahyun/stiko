@@ -10,6 +10,7 @@ import 'package:stiko/data/sticky_repository.dart';
 import 'package:stiko/features/auth/application/auth_providers.dart';
 import 'package:stiko/features/auth/application/auth_service.dart';
 import 'package:stiko/features/board/application/board_providers.dart';
+import 'package:stiko/features/board/presentation/sticky_detail_screen.dart';
 
 Sticky _sticky({String id = 's1', int colorIndex = 0, String title = ''}) {
   final DateTime now = DateTime(2026, 1, 1);
@@ -143,6 +144,18 @@ void main() {
     );
   }
 
+  Widget bootstrapScreen(Widget child, StickyRepository repo) {
+    return ProviderScope(
+      overrides: <Override>[
+        stickyRepositoryProvider.overrideWithValue(repo),
+        authServiceProvider.overrideWithValue(
+          FakeAuthService(user: const AppUser(uid: 'u', email: 't@t.com')),
+        ),
+      ],
+      child: MaterialApp(home: child),
+    );
+  }
+
   testWidgets('로그인하지 않으면 로그인 화면으로 이동한다', (tester) async {
     await tester.pumpWidget(
       bootstrap(
@@ -165,21 +178,28 @@ void main() {
     expect(find.text('스티커가 없습니다'), findsOneWidget);
   });
 
-  testWidgets('스티커 안의 할 일이 표시된다', (tester) async {
+  testWidgets('스티커 상세에서 할 일이 표시된다', (tester) async {
     final List<StickyWithTodos> board = <StickyWithTodos>[
       StickyWithTodos(_sticky(), <Todo>[_todo(content: '장보기')]),
     ];
-    await tester.pumpWidget(bootstrap(FakeStickyRepository(board)));
+    await tester.pumpWidget(
+      bootstrapScreen(
+        const StickyDetailScreen(stickyId: 's1'),
+        FakeStickyRepository(board),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('장보기'), findsOneWidget);
   });
 
-  testWidgets('체크박스를 누르면 toggleTodo가 호출된다', (tester) async {
+  testWidgets('상세에서 체크박스를 누르면 toggleTodo가 호출된다', (tester) async {
     final FakeStickyRepository repo = FakeStickyRepository(<StickyWithTodos>[
       StickyWithTodos(_sticky(), <Todo>[_todo(id: 'abc', content: '완료할 일')]),
     ]);
-    await tester.pumpWidget(bootstrap(repo));
+    await tester.pumpWidget(
+      bootstrapScreen(const StickyDetailScreen(stickyId: 's1'), repo),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(Checkbox));
