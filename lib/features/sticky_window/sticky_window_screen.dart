@@ -11,6 +11,7 @@ import '../../data/firestore_sticky_repository.dart';
 import '../../data/local/database.dart'
     show StickyWithTodos, Todo, completedLast;
 import '../sticky/application/sticky_window.dart';
+import 'sticky_window_todo_line.dart';
 
 /// Root widget of a standalone sticky window (one OS window per sticky).
 class StickyWindowRoot extends StatelessWidget {
@@ -373,27 +374,12 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
       padding: const EdgeInsets.fromLTRB(4, 4, 12, 12),
       children: <Widget>[
         for (final Todo t in completedLast(data.todos))
-          Row(
-            children: <Widget>[
-              Checkbox(
-                value: t.isDone,
-                onChanged: (bool? v) => _repo.toggleTodo(t.id, v ?? false),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                side: const BorderSide(color: Colors.black45),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  t.content,
-                  style: TextStyle(
-                    color: Colors.black87,
-                    decoration: t.isDone ? TextDecoration.lineThrough : null,
-                    decorationColor: Colors.black45,
-                  ),
-                ),
-              ),
-            ],
+          StickyWindowTodoLine(
+            key: ValueKey<String>(t.id),
+            todo: t,
+            onToggle: (bool value) => _repo.toggleTodo(t.id, value),
+            onEdit: (String content) => _repo.editTodoContent(t.id, content),
+            onDelete: () => _repo.deleteTodo(t.id),
           ),
         Row(
           children: <Widget>[
