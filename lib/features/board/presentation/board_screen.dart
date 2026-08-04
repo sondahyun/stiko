@@ -9,7 +9,6 @@ import '../../../data/local/database.dart';
 import '../../sticky/application/sticky_window.dart';
 import '../../sticky/presentation/sticky_toolbar.dart';
 import '../../widget/widget_service.dart';
-import '../../widget/widget_settings.dart';
 import '../application/board_providers.dart';
 import 'widgets/sticky_note_card.dart';
 
@@ -44,11 +43,7 @@ class _BoardScreenState extends ConsumerState<BoardScreen>
       final List<StickyWithTodos>? board =
           ref.read(boardStreamProvider).valueOrNull;
       if (board != null) {
-        WidgetService.sync(
-          board,
-          ref.read(stickyRepositoryProvider),
-          stickerIds: ref.read(widgetStickerSelectionProvider),
-        );
+        WidgetService.sync(board, ref.read(stickyRepositoryProvider));
       }
     }
   }

@@ -304,28 +304,35 @@ struct StikoWidgetEntryView: View {
           ForEach(slice) { todo in
             TodoRow(todo: todo)
           }
-          if canPage {
-            HStack(spacing: 12) {
-              if page > 0 {
-                Button(intent: PageIntent(key: entry.key, page: page - 1)) {
-                  Image(systemName: "chevron.left").font(.caption)
-                }
-                .buttonStyle(.plain)
-              }
-              Text("\(page + 1)/\(pageCount)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-              if page < pageCount - 1 {
-                Button(intent: PageIntent(key: entry.key, page: page + 1)) {
-                  Image(systemName: "chevron.right").font(.caption)
-                }
-                .buttonStyle(.plain)
-              }
-            }
-            .padding(.top, 1)
-          }
         }
         Spacer(minLength: 0)
+        // Paging controls pinned to the bottom center. iOS widgets can't
+        // scroll, so these step through a long list on tap. Both arrows stay
+        // visible (dimmed at the ends) so the page number stays centered.
+        if canPage {
+          HStack(spacing: 12) {
+            if page > 0 {
+              Button(intent: PageIntent(key: entry.key, page: page - 1)) {
+                Image(systemName: "chevron.left").font(.caption)
+              }
+              .buttonStyle(.plain)
+            } else {
+              Image(systemName: "chevron.left").font(.caption).foregroundStyle(.tertiary)
+            }
+            Text("\(page + 1)/\(pageCount)")
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+            if page < pageCount - 1 {
+              Button(intent: PageIntent(key: entry.key, page: page + 1)) {
+                Image(systemName: "chevron.right").font(.caption)
+              }
+              .buttonStyle(.plain)
+            } else {
+              Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+            }
+          }
+          .frame(maxWidth: .infinity, alignment: .center)
+        }
       }
     }
   }

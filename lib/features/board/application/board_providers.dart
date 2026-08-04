@@ -5,7 +5,6 @@ import '../../../data/local/database.dart';
 import '../../../data/sticky_repository.dart';
 import '../../auth/application/auth_providers.dart';
 import '../../widget/widget_service.dart';
-import '../../widget/widget_settings.dart';
 
 /// Repository backed by the signed-in user's Firestore data. Rebuilds when the
 /// user changes so each account sees only its own board.
@@ -23,29 +22,15 @@ final boardStreamProvider = StreamProvider<List<StickyWithTodos>>((ref) {
 /// Mirrors the board to the home and lock screen widgets whenever it changes.
 /// Watch this where the board is shown to keep the widget up to date.
 final widgetSyncProvider = Provider<void>((ref) {
-  final Set<String> selection = ref.watch(widgetStickerSelectionProvider);
   ref.listen<AsyncValue<List<StickyWithTodos>>>(
     boardStreamProvider,
     (AsyncValue<List<StickyWithTodos>>? prev,
         AsyncValue<List<StickyWithTodos>> next) {
       final List<StickyWithTodos>? board = next.valueOrNull;
       if (board != null) {
-        WidgetService.sync(
-          board,
-          ref.read(stickyRepositoryProvider),
-          stickerIds: selection,
-        );
+        WidgetService.sync(board, ref.read(stickyRepositoryProvider));
       }
     },
     fireImmediately: true,
   );
-  // Re-push immediately when the chosen stickers change.
-  final List<StickyWithTodos>? board = ref.read(boardStreamProvider).valueOrNull;
-  if (board != null) {
-    WidgetService.sync(
-      board,
-      ref.read(stickyRepositoryProvider),
-      stickerIds: selection,
-    );
-  }
 });
