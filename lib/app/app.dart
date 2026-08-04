@@ -1,9 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:home_widget/home_widget.dart';
 
 import '../core/app_zoom.dart';
 import 'application/theme_controller.dart';
@@ -19,33 +17,27 @@ class StikoApp extends ConsumerStatefulWidget {
 }
 
 class _StikoAppState extends ConsumerState<StikoApp> {
-  StreamSubscription<Uri?>? _widgetClick;
-
-  bool get _supportsHomeWidget =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+  /// Widget taps arrive here from the native iOS SceneDelegate as stiko:// URLs.
+  static const MethodChannel _deeplink = MethodChannel('stiko/deeplink');
 
   @override
   void initState() {
     super.initState();
-    // Open the tapped sticker when the app is launched or resumed from a
-    // widget. The widget's URL is stiko://sticker/<id> (or stiko://board).
-    if (_supportsHomeWidget) {
-      _widgetClick = HomeWidget.widgetClicked.listen(_openFromWidget);
-      unawaited(
-        HomeWidget.initiallyLaunchedFromHomeWidget().then(_openFromWidget),
-      );
+    // Only iOS wires up the SceneDelegate deep-link channel; on other platforms
+    // the channel has no native side, so skip it to avoid a missing-plugin error.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      _deeplink.setMethodCallHandler((MethodCall call) async {
+        if (call.method == 'open') _openFromUrl(call.arguments as String?);
+        return null;
+      });
+      // Cold start: the app was launched by tapping a widget.
+      _deeplink.invokeMethod<String>('getInitial').then(_openFromUrl);
     }
   }
 
-  @override
-  void dispose() {
-    _widgetClick?.cancel();
-    super.dispose();
-  }
-
-  void _openFromWidget(Uri? uri) {
+  void _openFromUrl(String? url) {
+    if (url == null) return;
+    final Uri? uri = Uri.tryParse(url);
     if (uri == null || uri.host != 'sticker' || uri.pathSegments.isEmpty) return;
     final String id = uri.pathSegments.first;
     // Defer until the router is mounted (and past any auth redirect).
