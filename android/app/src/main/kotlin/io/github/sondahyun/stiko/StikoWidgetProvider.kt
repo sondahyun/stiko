@@ -27,6 +27,13 @@ class StikoWidgetProvider : HomeWidgetProvider() {
         const val KIND_TOGGLE = "toggle"
         const val KIND_OPEN = "open"
         const val PREFS = "HomeWidgetPreferences"
+
+        // App sticky palette; DEFAULT_BG is a neutral cream when none is chosen.
+        const val DEFAULT_BG = 0xFFFBF7EF.toInt()
+        val PALETTE = intArrayOf(
+            0xFFFEF3BE.toInt(), 0xFFFCE1C8.toInt(), 0xFFDBF4D2.toInt(),
+            0xFFCFEEF8.toInt(), 0xFFE0DBF8.toInt(), 0xFFF9DCF1.toInt(),
+        )
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -95,10 +102,13 @@ class StikoWidgetProvider : HomeWidgetProvider() {
         for (widgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.stiko_widget)
 
-            // Per-widget background transparency (default 50%).
+            // Per-widget background color (app palette) and transparency (0..100).
+            val colorIndex = prefs.getInt("widget_color_$widgetId", -1)
+            val color = if (colorIndex in 0..5) PALETTE[colorIndex] else DEFAULT_BG
+            views.setInt(R.id.bg, "setColorFilter", color)
             val opacity = prefs.getInt("widget_opacity_$widgetId", 50)
-                .coerceIn(10, 100)
-            views.setFloat(R.id.bg, "setAlpha", opacity / 100f)
+                .coerceIn(0, 100)
+            views.setInt(R.id.bg, "setImageAlpha", opacity * 255 / 100)
 
             val serviceIntent = Intent(context, StikoWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)

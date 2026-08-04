@@ -1,8 +1,7 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <!-- Opaque card; the per-widget transparency is applied in code via
-         setImageAlpha on the background ImageView. -->
-    <solid android:color="#FBF7EF" />
-    <corners android:radius="20dp" />
-    <stroke android:width="1dp" android:color="#33FFFFFF" />
+    <!-- White card; the chosen color is applied in code via a color filter and
+         the transparency via setImageAlpha on the background ImageView. -->
+    <solid android:color="#FFFFFF" />
+    <corners android:radius="22dp" />
 </shape>
