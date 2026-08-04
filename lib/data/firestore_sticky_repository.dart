@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,30 +23,65 @@ class FirestoreStickyRepository implements StickyRepository {
   final Uuid _uuid;
   final DateTime Function() _clock;
 
+  // A single collection listener shared by the board and trash views. Opening a
+  // desktop_multi_window sub-window corrupts this engine's Firestore plugin
+  // channel, so any query listener STARTED afterwards throws a
+  // MissingPluginException on `listen` and then silently never emits — which is
+  // why opening the trash (a new listener) after a sticky window was open left
+  // it spinning forever. The board subscribes at launch, before any sub-window
+  // can exist, so this one listener stays healthy; the trash view piggybacks on
+  // it (replaying the cached snapshot) instead of starting its own.
+  StreamController<List<StickyWithTodos>>? _allController;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _allSub;
+  List<StickyWithTodos>? _latestAll;
+
   CollectionReference<Map<String, dynamic>> get _stickies =>
       _firestore.collection('users').doc(uid).collection('stickies');
 
+  /// The one shared collection stream. A late subscriber (the trash view, opened
+  /// after the board) is replayed the most recent snapshot and then follows live
+  /// updates, all WITHOUT starting a new Firestore `listen` — the board's launch
+  /// subscription is the only one that ever touches the plugin channel.
+  Stream<List<StickyWithTodos>> _watchAllStickies() {
+    _allController ??= StreamController<List<StickyWithTodos>>.broadcast(
+      onListen: _ensureCollectionListener,
+    );
+    final StreamController<List<StickyWithTodos>> controller = _allController!;
+    return Stream<List<StickyWithTodos>>.multi((
+      MultiStreamController<List<StickyWithTodos>> sub,
+    ) {
+      final List<StickyWithTodos>? cached = _latestAll;
+      if (cached != null) sub.addSync(cached);
+      final StreamSubscription<List<StickyWithTodos>> inner = controller.stream
+          .listen(sub.add, onError: sub.addError, onDone: sub.close);
+      sub.onCancel = inner.cancel;
+    });
+  }
+
+  void _ensureCollectionListener() {
+    _allSub ??= _stickies.orderBy('sortOrder').snapshots().listen(
+      (QuerySnapshot<Map<String, dynamic>> snap) {
+        _latestAll = snap.docs.map(_toStickyWithTodos).toList();
+        _allController?.add(_latestAll!);
+      },
+      onError: (Object e, StackTrace s) => _allController?.addError(e, s),
+    );
+  }
+
   @override
   Stream<List<StickyWithTodos>> watchBoard() {
-    return _stickies
-        .orderBy('sortOrder')
-        .snapshots()
-        .map(
-          (QuerySnapshot<Map<String, dynamic>> snap) => snap.docs
-              .where((doc) => doc.data()['deletedAt'] == null)
-              .map(_toStickyWithTodos)
-              .toList(),
-        );
+    return _watchAllStickies().map(
+      (List<StickyWithTodos> all) => all
+          .where((StickyWithTodos s) => s.sticky.deletedAt == null)
+          .toList(),
+    );
   }
 
   @override
   Stream<List<StickyWithTodos>> watchTrash() {
-    return _stickies.snapshots().map((
-      QuerySnapshot<Map<String, dynamic>> snap,
-    ) {
-      final List<StickyWithTodos> items = snap.docs
-          .where((doc) => doc.data()['deletedAt'] != null)
-          .map(_toStickyWithTodos)
+    return _watchAllStickies().map((List<StickyWithTodos> all) {
+      final List<StickyWithTodos> items = all
+          .where((StickyWithTodos s) => s.sticky.deletedAt != null)
           .toList();
       items.sort(
         (StickyWithTodos a, StickyWithTodos b) =>
