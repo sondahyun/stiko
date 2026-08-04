@@ -252,7 +252,8 @@ struct StikoWidgetEntryView: View {
     case .systemSmall: return 3
     case .systemMedium: return 5
     case .systemLarge: return 12
-    case .accessoryRectangular: return 3
+    // Two rows leave room for the ◀ n/m ▶ pager on the small lock widget.
+    case .accessoryRectangular: return 2
     default: return 3
     }
   }
@@ -270,9 +271,10 @@ struct StikoWidgetEntryView: View {
     return Array(entry.todos[start ..< end])
   }
 
-  // Paging controls make sense only where there's room (home screen sizes).
+  // Paging lets even the tiny lock screen widget step through a long list,
+  // since iOS never allows scrolling inside a widget.
   private var canPage: Bool {
-    pageCount > 1 && family != .accessoryRectangular
+    pageCount > 1
   }
 
   var body: some View {
