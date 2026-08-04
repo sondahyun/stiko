@@ -7,15 +7,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.text.SpannableString
+import android.text.Spannable
+import android.text.style.StrikethroughSpan
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Home screen widget showing the todo list. Each row has a circle that, when
- * tapped, completes the todo: it disappears at once (and the app persists the
- * completion to the cloud on its next resume).
+ * tapped, completes the todo in place: it stays visible with a filled circle
+ * and a strikethrough (the app persists the change to the cloud on next resume).
  */
 class StikoWidgetProvider : HomeWidgetProvider() {
 
@@ -29,7 +33,7 @@ class StikoWidgetProvider : HomeWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_TOGGLE) {
             intent.getStringExtra(EXTRA_ID)?.let { id ->
-                completeTodo(context, id)
+                toggleTodo(context, id)
                 val manager = AppWidgetManager.getInstance(context)
                 val ids = manager.getAppWidgetIds(
                     ComponentName(context, StikoWidgetProvider::class.java)
@@ -45,23 +49,27 @@ class StikoWidgetProvider : HomeWidgetProvider() {
         super.onReceive(context, intent)
     }
 
-    /** Removes [id] from the shared todo list and records it as pending. */
-    private fun completeTodo(context: Context, id: String) {
+    /** Flips [id]'s done state in the shared data and records it as pending. */
+    private fun toggleTodo(context: Context, id: String) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val kept = JSONArray()
+        var newDone = true
         val todos = JSONArray(prefs.getString("todos", "[]") ?: "[]")
         for (i in 0 until todos.length()) {
             val obj = todos.getJSONObject(i)
-            if (obj.optString("id") != id) kept.put(obj)
+            if (obj.optString("id") == id) {
+                newDone = !obj.optBoolean("done", false)
+                obj.put("done", newDone)
+            }
         }
-        val pending = JSONArray(prefs.getString("pending", "[]") ?: "[]")
-        var exists = false
-        for (i in 0 until pending.length()) {
-            if (pending.getString(i) == id) exists = true
+        val pending = JSONArray()
+        val existing = JSONArray(prefs.getString("pending", "[]") ?: "[]")
+        for (i in 0 until existing.length()) {
+            val obj = existing.getJSONObject(i)
+            if (obj.optString("id") != id) pending.put(obj)
         }
-        if (!exists) pending.put(id)
+        pending.put(JSONObject().put("id", id).put("done", newDone))
         prefs.edit()
-            .putString("todos", kept.toString())
+            .putString("todos", todos.toString())
             .putString("pending", pending.toString())
             .apply()
     }
@@ -90,8 +98,24 @@ class StikoWidgetProvider : HomeWidgetProvider() {
                 if (i < todos.length()) {
                     val obj = todos.getJSONObject(i)
                     val todoId = obj.optString("id")
+                    val done = obj.optBoolean("done", false)
+                    val content = obj.optString("content")
+
                     views.setViewVisibility(rowIds[i], View.VISIBLE)
-                    views.setTextViewText(textIds[i], obj.optString("content"))
+                    if (done) {
+                        val struck = SpannableString(content)
+                        struck.setSpan(
+                            StrikethroughSpan(), 0, struck.length,
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        views.setTextViewText(textIds[i], struck)
+                        views.setTextColor(textIds[i], 0xFF9E9E9E.toInt())
+                        views.setImageViewResource(circleIds[i], R.drawable.ic_widget_check)
+                    } else {
+                        views.setTextViewText(textIds[i], content)
+                        views.setTextColor(textIds[i], 0xFF222222.toInt())
+                        views.setImageViewResource(circleIds[i], R.drawable.ic_widget_circle)
+                    }
 
                     val toggle = Intent(context, StikoWidgetProvider::class.java).apply {
                         action = ACTION_TOGGLE

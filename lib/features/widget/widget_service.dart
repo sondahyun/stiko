@@ -7,8 +7,8 @@ import '../../data/local/database.dart';
 import '../../data/sticky_repository.dart';
 
 /// Bridges the board to the iOS / Android home and lock screen widgets, sharing
-/// data through an App Group. Also reconciles toggles the user made from the
-/// widget (while the app was closed) back into the repository.
+/// data through an App Group. Also reconciles the checkboxes the user tapped in
+/// the widget back into the repository.
 class WidgetService {
   const WidgetService._();
 
@@ -23,8 +23,8 @@ class WidgetService {
       defaultTargetPlatform == TargetPlatform.iOS ||
       defaultTargetPlatform == TargetPlatform.android;
 
-  /// Pushes the current board to the widget and applies any toggles made from
-  /// the widget itself. [repo] is used to persist those toggles.
+  /// Pushes the current board to the widget and applies any checkbox taps made
+  /// from the widget. [repo] persists those toggles.
   static Future<void> sync(
     List<StickyWithTodos> board,
     StickyRepository repo,
@@ -33,35 +33,37 @@ class WidgetService {
     try {
       await HomeWidget.setAppGroupId(appGroupId);
 
-      // 1) Apply toggles the user tapped in the widget while the app was away.
-      final Set<String> pendingIds = await _drainPending();
-      for (final String id in pendingIds) {
-        await repo.toggleTodo(id, true);
+      // 1) Apply the checkbox taps the user made in the widget.
+      final Map<String, bool> pending = await _drainPending();
+      for (final MapEntry<String, bool> e in pending.entries) {
+        await repo.toggleTodo(e.key, e.value);
       }
 
-      // 2) Publish the current incomplete todos for the widget to render,
-      //    hiding any just toggled from the widget so they do not flash back.
-      final List<Map<String, String>> incomplete = <Map<String, String>>[];
-      int total = 0;
-      int done = 0;
+      // 2) Publish todos: open ones first, then completed ones (kept visible
+      //    with a strikethrough), applying any not-yet-persisted taps.
+      final List<Map<String, dynamic>> open = <Map<String, dynamic>>[];
+      final List<Map<String, dynamic>> completed = <Map<String, dynamic>>[];
       for (final StickyWithTodos s in board) {
         for (final Todo t in s.todos) {
-          total++;
-          if (t.isDone || pendingIds.contains(t.id)) {
-            done++;
-          } else {
-            incomplete.add(<String, String>{'id': t.id, 'content': t.content});
-          }
+          final bool done = pending[t.id] ?? t.isDone;
+          final Map<String, dynamic> entry = <String, dynamic>{
+            'id': t.id,
+            'content': t.content,
+            'done': done,
+          };
+          (done ? completed : open).add(entry);
         }
       }
+      final List<Map<String, dynamic>> all = <Map<String, dynamic>>[
+        ...open,
+        ...completed,
+      ];
 
-      await HomeWidget.saveWidgetData<String>('todos', jsonEncode(incomplete));
-      await HomeWidget.saveWidgetData<int>('count', incomplete.length);
-      await HomeWidget.saveWidgetData<int>('done', done);
-      await HomeWidget.saveWidgetData<int>('total', total);
+      await HomeWidget.saveWidgetData<String>('todos', jsonEncode(all));
+      await HomeWidget.saveWidgetData<int>('count', open.length);
       await HomeWidget.saveWidgetData<String>(
         'next',
-        incomplete.isNotEmpty ? incomplete.first['content']! : '할 일 없음',
+        open.isNotEmpty ? open.first['content'] as String : '할 일 없음',
       );
       await HomeWidget.updateWidget(
         iOSName: iOSWidgetName,
@@ -72,19 +74,22 @@ class WidgetService {
     }
   }
 
-  /// Reads and clears the ids the user completed from the widget.
-  static Future<Set<String>> _drainPending() async {
+  /// Reads and clears the checkbox taps made in the widget, as id -> new state.
+  static Future<Map<String, bool>> _drainPending() async {
     final String? raw = await HomeWidget.getWidgetData<String>('pending');
-    if (raw == null || raw.isEmpty) return <String>{};
-    Set<String> ids;
+    if (raw == null || raw.isEmpty) return <String, bool>{};
+    final Map<String, bool> result = <String, bool>{};
     try {
-      ids = (jsonDecode(raw) as List<dynamic>).cast<String>().toSet();
+      for (final dynamic e in jsonDecode(raw) as List<dynamic>) {
+        final Map<String, dynamic> m = e as Map<String, dynamic>;
+        result[m['id'] as String] = m['done'] as bool;
+      }
     } catch (_) {
-      ids = <String>{};
+      return <String, bool>{};
     }
-    if (ids.isNotEmpty) {
+    if (result.isNotEmpty) {
       await HomeWidget.saveWidgetData<String>('pending', '[]');
     }
-    return ids;
+    return result;
   }
 }

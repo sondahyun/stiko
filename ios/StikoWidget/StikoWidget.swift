@@ -5,23 +5,25 @@ import AppIntents
 // Must match WidgetService.appGroupId on the Flutter side.
 private let appGroupId = "group.io.github.sondahyun.stiko"
 private let widgetKind = "StikoWidget"
+private let inkColor = Color(red: 0.43, green: 0.37, blue: 0.09)
 
 // MARK: - Data
 
 struct TodoItem: Identifiable {
   let id: String
   let content: String
+  let done: Bool
 }
 
 private func loadTodos() -> [TodoItem] {
   let defaults = UserDefaults(suiteName: appGroupId)
   guard let raw = defaults?.string(forKey: "todos"),
         let data = raw.data(using: .utf8),
-        let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: String]]
+        let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
   else { return [] }
   return arr.compactMap { d in
-    guard let id = d["id"], let content = d["content"] else { return nil }
-    return TodoItem(id: id, content: content)
+    guard let id = d["id"] as? String, let content = d["content"] as? String else { return nil }
+    return TodoItem(id: id, content: content, done: (d["done"] as? Bool) ?? false)
   }
 }
 
@@ -40,28 +42,30 @@ struct ToggleTodoIntent: AppIntent {
   func perform() async throws -> some IntentResult {
     let defaults = UserDefaults(suiteName: appGroupId)
 
-    // Remove the tapped todo from the shared list so it disappears at once and
-    // the remaining todos move up.
+    // Flip the tapped todo's done state so it gets (or loses) a strikethrough
+    // in place, instead of disappearing.
+    var newDone = true
     if let raw = defaults?.string(forKey: "todos"),
        let data = raw.data(using: .utf8),
-       var arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: String]] {
-      arr.removeAll { $0["id"] == id }
+       var arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
+      for i in arr.indices where (arr[i]["id"] as? String) == id {
+        newDone = !((arr[i]["done"] as? Bool) ?? false)
+        arr[i]["done"] = newDone
+      }
       if let out = try? JSONSerialization.data(withJSONObject: arr),
          let str = String(data: out, encoding: .utf8) {
         defaults?.set(str, forKey: "todos")
       }
-      defaults?.set(arr.count, forKey: "count")
     }
 
-    // Remember it so the app persists the completion to the cloud next time it
-    // is active.
-    var pending: [String] = []
+    // Record the change so the app persists it to the cloud on its next resume.
+    var pending: [[String: Any]] = []
     if let raw = defaults?.string(forKey: "pending"),
        let data = raw.data(using: .utf8),
-       let arr = (try? JSONSerialization.jsonObject(with: data)) as? [String] {
-      pending = arr
+       let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
+      pending = arr.filter { ($0["id"] as? String) != id }
     }
-    if !pending.contains(id) { pending.append(id) }
+    pending.append(["id": id, "done": newDone])
     if let out = try? JSONSerialization.data(withJSONObject: pending),
        let str = String(data: out, encoding: .utf8) {
       defaults?.set(str, forKey: "pending")
@@ -81,7 +85,7 @@ struct StikoEntry: TimelineEntry {
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> StikoEntry {
-    StikoEntry(date: Date(), todos: [TodoItem(id: "1", content: "할 일 미리보기")])
+    StikoEntry(date: Date(), todos: [TodoItem(id: "1", content: "할 일 미리보기", done: false)])
   }
 
   func getSnapshot(in context: Context, completion: @escaping (StikoEntry) -> Void) {
@@ -98,22 +102,27 @@ struct Provider: TimelineProvider {
 struct TodoRow: View {
   let todo: TodoItem
 
+  @ViewBuilder
+  private var circle: some View {
+    Image(systemName: todo.done ? "checkmark.circle.fill" : "circle")
+      .font(.system(size: 15))
+      .foregroundStyle(todo.done ? inkColor : Color.secondary)
+  }
+
   var body: some View {
     HStack(spacing: 8) {
       if #available(iOS 17.0, *) {
         Button(intent: ToggleTodoIntent(id: todo.id)) {
-          Image(systemName: "circle")
-            .font(.system(size: 15))
-            .foregroundStyle(.secondary)
+          circle
         }
         .buttonStyle(.plain)
       } else {
-        Image(systemName: "circle")
-          .font(.system(size: 15))
-          .foregroundStyle(.secondary)
+        circle
       }
       Text(todo.content)
         .font(.footnote)
+        .strikethrough(todo.done)
+        .foregroundStyle(todo.done ? Color.secondary : Color.primary)
         .lineLimit(1)
       Spacer(minLength: 0)
     }
@@ -123,6 +132,8 @@ struct TodoRow: View {
 struct StikoWidgetEntryView: View {
   @Environment(\.widgetFamily) var family
   var entry: Provider.Entry
+
+  private var openCount: Int { entry.todos.filter { !$0.done }.count }
 
   private var limit: Int {
     switch family {
@@ -135,11 +146,11 @@ struct StikoWidgetEntryView: View {
   var body: some View {
     switch family {
     case .accessoryInline:
-      Text(entry.todos.first?.content ?? "할 일 없음")
+      Text(entry.todos.first(where: { !$0.done })?.content ?? "할 일 없음")
 
     case .accessoryCircular:
       VStack(spacing: 0) {
-        Text("\(entry.todos.count)").font(.headline)
+        Text("\(openCount)").font(.headline)
         Text("할일").font(.system(size: 9))
       }
 
