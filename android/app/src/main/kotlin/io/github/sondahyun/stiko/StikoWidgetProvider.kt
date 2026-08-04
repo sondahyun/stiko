@@ -22,21 +22,42 @@ class StikoWidgetProvider : HomeWidgetProvider() {
     companion object {
         const val ACTION_TOGGLE = "io.github.sondahyun.stiko.WIDGET_TOGGLE"
         const val EXTRA_ID = "todo_id"
+        const val EXTRA_STICKY = "sticky_id"
+        const val EXTRA_KIND = "kind"
+        const val KIND_TOGGLE = "toggle"
+        const val KIND_OPEN = "open"
         const val PREFS = "HomeWidgetPreferences"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_TOGGLE) {
-            intent.getStringExtra(EXTRA_ID)?.let { id ->
-                toggleTodo(context, id)
-                val manager = AppWidgetManager.getInstance(context)
-                val ids = manager.getAppWidgetIds(
-                    ComponentName(context, StikoWidgetProvider::class.java)
-                )
-                manager.notifyAppWidgetViewDataChanged(ids, R.id.list)
+            when (intent.getStringExtra(EXTRA_KIND)) {
+                // Row text tapped: open that todo's sticker in the app.
+                KIND_OPEN -> openSticker(context, intent.getStringExtra(EXTRA_STICKY))
+                // Circle tapped (or legacy taps): complete / uncomplete in place.
+                else -> intent.getStringExtra(EXTRA_ID)?.let { id ->
+                    toggleTodo(context, id)
+                    val manager = AppWidgetManager.getInstance(context)
+                    val ids = manager.getAppWidgetIds(
+                        ComponentName(context, StikoWidgetProvider::class.java)
+                    )
+                    manager.notifyAppWidgetViewDataChanged(ids, R.id.list)
+                }
             }
         }
         super.onReceive(context, intent)
+    }
+
+    /** Launches the app on the given sticker's detail (or the board if none). */
+    private fun openSticker(context: Context, stickyId: String?) {
+        val uri = if (stickyId.isNullOrEmpty()) "stiko://board"
+                  else "stiko://sticker/$stickyId"
+        val launch = Intent(context, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            data = Uri.parse(uri)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        context.startActivity(launch)
     }
 
     /** Flips [id]'s done state in the shared data and records it as pending. */

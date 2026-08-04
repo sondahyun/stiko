@@ -55,6 +55,7 @@ class WidgetService {
             'id': t.id,
             'content': t.content,
             'done': done,
+            'stickyId': s.sticky.id,
           };
           (done ? completed : open).add(entry);
         }

@@ -40,6 +40,7 @@ class StikoRemoteViewsFactory(
         val views = RemoteViews(context.packageName, R.layout.stiko_widget_row)
         val obj = items.getJSONObject(position)
         val id = obj.optString("id")
+        val stickyId = obj.optString("stickyId")
         val done = obj.optBoolean("done", false)
         val content = obj.optString("content")
 
@@ -58,12 +59,20 @@ class StikoRemoteViewsFactory(
             views.setImageViewResource(R.id.row_circle, R.drawable.ic_widget_circle)
         }
 
-        // The list's PendingIntent template supplies the action + component; this
-        // fill-in intent adds which todo was tapped.
-        val fillIn = Intent().apply {
+        // The list's PendingIntent template supplies the component; these fill-in
+        // intents add what was tapped. Circle toggles the todo; the text opens
+        // that todo's sticker in the app.
+        val toggleFill = Intent().apply {
+            putExtra(StikoWidgetProvider.EXTRA_KIND, StikoWidgetProvider.KIND_TOGGLE)
             putExtra(StikoWidgetProvider.EXTRA_ID, id)
         }
-        views.setOnClickFillInIntent(R.id.row_circle, fillIn)
+        views.setOnClickFillInIntent(R.id.row_circle, toggleFill)
+
+        val openFill = Intent().apply {
+            putExtra(StikoWidgetProvider.EXTRA_KIND, StikoWidgetProvider.KIND_OPEN)
+            putExtra(StikoWidgetProvider.EXTRA_STICKY, stickyId)
+        }
+        views.setOnClickFillInIntent(R.id.row_text, openFill)
         return views
     }
 

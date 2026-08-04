@@ -23,9 +23,11 @@ class _StikoAppState extends ConsumerState<StikoApp> {
   @override
   void initState() {
     super.initState();
-    // Only iOS wires up the SceneDelegate deep-link channel; on other platforms
-    // the channel has no native side, so skip it to avoid a missing-plugin error.
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+    // iOS (SceneDelegate) and Android (MainActivity) both wire up this channel;
+    // other platforms have no native side, so skip it to avoid a plugin error.
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.android)) {
       _deeplink.setMethodCallHandler((MethodCall call) async {
         if (call.method == 'open') _openFromUrl(call.arguments as String?);
         return null;
