@@ -60,6 +60,7 @@ class FakeStickyRepository implements StickyRepository {
   final List<StickyWithTodos> _board;
   final List<(String id, bool isDone)> toggled = <(String, bool)>[];
   final List<List<String>> stickyOrders = <List<String>>[];
+  final List<String> deletedStickies = <String>[];
 
   @override
   Stream<List<StickyWithTodos>> watchBoard() =>
@@ -84,7 +85,9 @@ class FakeStickyRepository implements StickyRepository {
   Future<void> deleteTodo(String todoId) async {}
 
   @override
-  Future<void> deleteSticky(String stickyId) async {}
+  Future<void> deleteSticky(String stickyId) async {
+    deletedStickies.add(stickyId);
+  }
 
   @override
   Future<void> setStickyColor(String stickyId, int colorIndex) async {}
@@ -272,6 +275,58 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.stickyOrders.last, <String>['s2', 's1', 's3']);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
+
+  testWidgets(
+    '열린 스티커는 삭제를 막고 창을 닫은 뒤 삭제한다',
+    (tester) async {
+      const MethodChannel windowChannel = MethodChannel(
+        'mixin.one/desktop_multi_window',
+      );
+      bool childOpen = true;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(windowChannel, (MethodCall call) async {
+            if (call.method != 'getAllWindows') return null;
+            return <Map<String, Object?>>[
+              <String, Object?>{'windowId': 'main', 'windowArgument': ''},
+              if (childOpen)
+                <String, Object?>{
+                  'windowId': 'child',
+                  'windowArgument': jsonEncode(<String, Object>{
+                    'stickyId': 's1',
+                  }),
+                },
+            ];
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(windowChannel, null);
+      });
+
+      final StickyWithTodos item = StickyWithTodos(
+        _sticky(id: 's1', title: '삭제 테스트'),
+        const <Todo>[],
+      );
+      final FakeStickyRepository repo = FakeStickyRepository(<StickyWithTodos>[
+        item,
+      ]);
+      await tester.pumpWidget(
+        bootstrapScreen(Scaffold(body: StickyTitleRow(data: item)), repo),
+      );
+
+      await tester.tap(find.byTooltip('스티커 삭제'));
+      await tester.pump();
+
+      expect(find.text('열려 있는 스티커 창을 먼저 닫아 주세요.'), findsOneWidget);
+      expect(repo.deletedStickies, isEmpty);
+
+      childOpen = false;
+      await tester.tap(find.byTooltip('스티커 삭제'));
+      await tester.pump();
+
+      expect(repo.deletedStickies, <String>['s1']);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );

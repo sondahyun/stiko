@@ -22,6 +22,47 @@ final Set<String> _openingStickies = <String>{};
 /// detail page twice (which would need two back presses to undo).
 final Set<String> _navigatingStickies = <String>{};
 
+/// Prevents deletion while the sticky's secondary Flutter engine is still
+/// subscribed. Deleting that Firestore document first can tear down every
+/// managed Windows engine instead of only removing the selected sticky.
+Future<void> deleteStickyFromBoard(
+  BuildContext context,
+  WidgetRef ref,
+  String stickyId,
+) async {
+  if (isDesktop) {
+    try {
+      final List<WindowController> windows = await WindowController.getAll();
+      final bool isOpen = windows.any(
+        (WindowController window) =>
+            _stickyIdFromArguments(window.arguments) == stickyId,
+      );
+      if (isOpen) {
+        if (context.mounted) {
+          final ScaffoldMessengerState messenger = ScaffoldMessenger.of(
+            context,
+          );
+          messenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              const SnackBar(content: Text('열려 있는 스티커 창을 먼저 닫아 주세요.')),
+            );
+        }
+        return;
+      }
+    } catch (error) {
+      debugPrint('Failed to check sticky window before delete: $error');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('창 상태를 확인하지 못했습니다. 다시 시도해 주세요.')),
+        );
+      }
+      return;
+    }
+  }
+  await ref.read(stickyRepositoryProvider).deleteSticky(stickyId);
+}
+
 /// Opens a sticky: on desktop in its own floating window, on mobile by
 /// navigating to a full-screen detail page.
 Future<void> openSticky(
@@ -286,9 +327,8 @@ class StickyTitleRow extends ConsumerWidget {
                 iconSize: 18,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.delete_outline, color: Colors.black54),
-                onPressed: () => ref
-                    .read(stickyRepositoryProvider)
-                    .deleteSticky(data.sticky.id),
+                onPressed: () =>
+                    deleteStickyFromBoard(context, ref, data.sticky.id),
               ),
             ],
           ),
