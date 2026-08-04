@@ -252,7 +252,7 @@ struct StikoWidgetEntryView: View {
     case .systemSmall: return 3
     case .systemMedium: return 5
     case .systemLarge: return 12
-    case .accessoryRectangular: return 2
+    case .accessoryRectangular: return 3
     default: return 3
     }
   }
