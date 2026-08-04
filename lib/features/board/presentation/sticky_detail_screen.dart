@@ -161,10 +161,20 @@ class _ReorderableTodosState extends ConsumerState<_ReorderableTodos> {
       ),
       itemBuilder: (BuildContext context, int index) {
         final Todo todo = items[index];
-        return ReorderableDelayedDragStartListener(
+        // The row's text is an editable field, so long-pressing it would start
+        // text selection, not a drag. Use an explicit handle instead.
+        return Row(
           key: ValueKey<String>(todo.id),
-          index: index,
-          child: TodoLine(todo: todo),
+          children: <Widget>[
+            Expanded(child: TodoLine(todo: todo)),
+            ReorderableDragStartListener(
+              index: index,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                child: Icon(Icons.drag_handle, color: Colors.black38, size: 22),
+              ),
+            ),
+          ],
         );
       },
     );
