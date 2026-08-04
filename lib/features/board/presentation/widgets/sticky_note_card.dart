@@ -22,10 +22,10 @@ final Set<String> _openingStickies = <String>{};
 /// detail page twice (which would need two back presses to undo).
 final Set<String> _navigatingStickies = <String>{};
 
-/// Prevents deletion while the sticky's secondary Flutter engine is still
-/// subscribed. Deleting that Firestore document first can tear down every
-/// managed Windows engine instead of only removing the selected sticky.
-Future<void> deleteStickyFromBoard(
+/// Prevents moving a sticky while its secondary Flutter engine is subscribed.
+/// Removing it from the active board first can tear down every managed Windows
+/// engine instead of only updating the selected sticky.
+Future<void> moveStickyToTrashFromBoard(
   BuildContext context,
   WidgetRef ref,
   String stickyId,
@@ -45,7 +45,7 @@ Future<void> deleteStickyFromBoard(
           messenger
             ..hideCurrentSnackBar()
             ..showSnackBar(
-              const SnackBar(content: Text('열려 있는 스티커 창을 먼저 닫아 주세요.')),
+              const SnackBar(content: Text('휴지통으로 이동하려면 스티커 창을 먼저 닫아 주세요.')),
             );
         }
         return;
@@ -60,7 +60,7 @@ Future<void> deleteStickyFromBoard(
       return;
     }
   }
-  await ref.read(stickyRepositoryProvider).deleteSticky(stickyId);
+  await ref.read(stickyRepositoryProvider).moveStickyToTrash(stickyId);
 }
 
 /// Opens a sticky: on desktop in its own floating window, on mobile by
@@ -323,12 +323,12 @@ class StickyTitleRow extends ConsumerWidget {
               ),
               ?dragHandle,
               IconButton(
-                tooltip: '스티커 삭제',
+                tooltip: '휴지통으로 이동',
                 iconSize: 18,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.delete_outline, color: Colors.black54),
                 onPressed: () =>
-                    deleteStickyFromBoard(context, ref, data.sticky.id),
+                    moveStickyToTrashFromBoard(context, ref, data.sticky.id),
               ),
             ],
           ),

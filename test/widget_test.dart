@@ -16,6 +16,7 @@ import 'package:stiko/features/board/application/board_providers.dart';
 import 'package:stiko/features/board/presentation/sticky_detail_screen.dart';
 import 'package:stiko/features/board/presentation/widgets/sticky_note_card.dart';
 import 'package:stiko/features/sticky/application/sticky_window.dart';
+import 'package:stiko/features/trash/presentation/trash_screen.dart';
 
 Sticky _sticky({
   String id = 's1',
@@ -55,16 +56,26 @@ Todo _todo({
 
 /// In-memory fake so widget tests never touch Drift or its timers.
 class FakeStickyRepository implements StickyRepository {
-  FakeStickyRepository(this._board);
+  FakeStickyRepository(
+    this._board, {
+    List<StickyWithTodos> trash = const <StickyWithTodos>[],
+  }) : _trash = List<StickyWithTodos>.of(trash);
 
   final List<StickyWithTodos> _board;
+  final List<StickyWithTodos> _trash;
   final List<(String id, bool isDone)> toggled = <(String, bool)>[];
   final List<List<String>> stickyOrders = <List<String>>[];
+  final List<String> movedToTrash = <String>[];
+  final List<String> restoredStickies = <String>[];
   final List<String> deletedStickies = <String>[];
 
   @override
   Stream<List<StickyWithTodos>> watchBoard() =>
       Stream<List<StickyWithTodos>>.value(_board);
+
+  @override
+  Stream<List<StickyWithTodos>> watchTrash() =>
+      Stream<List<StickyWithTodos>>.value(_trash);
 
   @override
   Future<Sticky> addSticky({int colorIndex = 0, String title = ''}) async =>
@@ -87,6 +98,16 @@ class FakeStickyRepository implements StickyRepository {
   @override
   Future<void> deleteSticky(String stickyId) async {
     deletedStickies.add(stickyId);
+  }
+
+  @override
+  Future<void> moveStickyToTrash(String stickyId) async {
+    movedToTrash.add(stickyId);
+  }
+
+  @override
+  Future<void> restoreSticky(String stickyId) async {
+    restoredStickies.add(stickyId);
   }
 
   @override
@@ -316,20 +337,64 @@ void main() {
         bootstrapScreen(Scaffold(body: StickyTitleRow(data: item)), repo),
       );
 
-      await tester.tap(find.byTooltip('스티커 삭제'));
+      await tester.tap(find.byTooltip('휴지통으로 이동'));
       await tester.pump();
 
-      expect(find.text('열려 있는 스티커 창을 먼저 닫아 주세요.'), findsOneWidget);
-      expect(repo.deletedStickies, isEmpty);
+      expect(find.text('휴지통으로 이동하려면 스티커 창을 먼저 닫아 주세요.'), findsOneWidget);
+      expect(repo.movedToTrash, isEmpty);
 
       childOpen = false;
-      await tester.tap(find.byTooltip('스티커 삭제'));
+      await tester.tap(find.byTooltip('휴지통으로 이동'));
       await tester.pump();
 
-      expect(repo.deletedStickies, <String>['s1']);
+      expect(repo.movedToTrash, <String>['s1']);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );
+
+  testWidgets('상단 휴지통 버튼으로 빈 휴지통을 연다', (tester) async {
+    await tester.pumpWidget(
+      bootstrap(FakeStickyRepository(const <StickyWithTodos>[])),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('휴지통'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('휴지통이 비어 있습니다'), findsOneWidget);
+  });
+
+  testWidgets('휴지통에서 스티커를 복원하고 영구 삭제한다', (tester) async {
+    final StickyWithTodos first = StickyWithTodos(
+      _sticky(id: 's1', title: '복원 메모'),
+      <Todo>[_todo(id: 't1', stickyId: 's1')],
+    );
+    final StickyWithTodos second = StickyWithTodos(
+      _sticky(id: 's2', title: '삭제 메모'),
+      const <Todo>[],
+    );
+    final FakeStickyRepository repo = FakeStickyRepository(
+      const <StickyWithTodos>[],
+      trash: <StickyWithTodos>[first, second],
+    );
+    await tester.pumpWidget(bootstrapScreen(const TrashScreen(), repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text('복원 메모'), findsOneWidget);
+    expect(find.text('할 일 1개'), findsOneWidget);
+    await tester.tap(find.byTooltip('복원').first);
+    await tester.pump();
+    expect(repo.restoredStickies, <String>['s1']);
+
+    await tester.tap(find.byTooltip('영구 삭제').last);
+    await tester.pumpAndSettle();
+    expect(find.text('스티커를 영구 삭제할까요?'), findsOneWidget);
+    expect(repo.deletedStickies, isEmpty);
+
+    await tester.tap(find.widgetWithText(FilledButton, '영구 삭제'));
+    await tester.pumpAndSettle();
+    expect(repo.deletedStickies, <String>['s2']);
+  });
 
   testWidgets(
     '데스크톱에서 목록을 누르면 스티커 새 창을 연다',

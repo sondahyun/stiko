@@ -9,11 +9,14 @@ import 'local/database.dart';
 /// a cloud-synced implementation can be swapped in later.
 abstract interface class StickyRepository {
   Stream<List<StickyWithTodos>> watchBoard();
+  Stream<List<StickyWithTodos>> watchTrash();
 
   Future<Sticky> addSticky({int colorIndex, String title});
   Future<void> setStickyColor(String stickyId, int colorIndex);
   Future<void> setStickyOpacity(String stickyId, double opacity);
   Future<void> setStickyTitle(String stickyId, String title);
+  Future<void> moveStickyToTrash(String stickyId);
+  Future<void> restoreSticky(String stickyId);
   Future<void> deleteSticky(String stickyId);
   Future<void> reorderStickies(List<Sticky> ordered);
 
@@ -38,6 +41,9 @@ class LocalStickyRepository implements StickyRepository {
 
   @override
   Stream<List<StickyWithTodos>> watchBoard() => _db.watchBoard();
+
+  @override
+  Stream<List<StickyWithTodos>> watchTrash() => _db.watchTrash();
 
   @override
   Future<Sticky> addSticky({int colorIndex = 0, String title = ''}) async {
@@ -78,6 +84,14 @@ class LocalStickyRepository implements StickyRepository {
       _db.updateStickyTitle(stickyId, title, _clock());
 
   @override
+  Future<void> moveStickyToTrash(String stickyId) =>
+      _db.moveStickyToTrash(stickyId, _clock());
+
+  @override
+  Future<void> restoreSticky(String stickyId) =>
+      _db.restoreSticky(stickyId, _clock());
+
+  @override
   Future<void> deleteSticky(String stickyId) => _db.deleteSticky(stickyId);
 
   @override
@@ -103,15 +117,15 @@ class LocalStickyRepository implements StickyRepository {
 
   @override
   Future<void> editTodoContent(String todoId, String content) => _db.patchTodo(
-        todoId,
-        TodosCompanion(content: Value(content), updatedAt: Value(_clock())),
-      );
+    todoId,
+    TodosCompanion(content: Value(content), updatedAt: Value(_clock())),
+  );
 
   @override
   Future<void> toggleTodo(String todoId, bool isDone) => _db.patchTodo(
-        todoId,
-        TodosCompanion(isDone: Value(isDone), updatedAt: Value(_clock())),
-      );
+    todoId,
+    TodosCompanion(isDone: Value(isDone), updatedAt: Value(_clock())),
+  );
 
   @override
   Future<void> deleteTodo(String todoId) => _db.deleteTodo(todoId);

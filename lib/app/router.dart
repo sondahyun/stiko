@@ -10,6 +10,7 @@ import '../features/auth/presentation/signup_screen.dart';
 import '../features/board/presentation/board_screen.dart';
 import '../features/board/presentation/sticky_detail_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/trash/presentation/trash_screen.dart';
 
 /// Named route paths used across the app.
 class StikoRoutes {
@@ -19,6 +20,7 @@ class StikoRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String settings = '/settings';
+  static const String trash = '/trash';
   static const String sticky = '/sticky/:id';
 
   /// Builds the concrete detail path for a given sticky id.
@@ -29,8 +31,9 @@ class StikoRoutes {
 /// to the login screen, signed-in users away from the auth screens.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authServiceProvider);
-  final GoRouterRefreshStream refresh =
-      GoRouterRefreshStream(auth.authStateChanges());
+  final GoRouterRefreshStream refresh = GoRouterRefreshStream(
+    auth.authStateChanges(),
+  );
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
@@ -63,6 +66,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
+        path: StikoRoutes.trash,
+        builder: (context, state) => const TrashScreen(),
+      ),
+      GoRoute(
         path: StikoRoutes.sticky,
         builder: (context, state) =>
             StickyDetailScreen(stickyId: state.pathParameters['id']!),
@@ -76,8 +83,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
-    _subscription =
-        stream.asBroadcastStream().listen((_) => notifyListeners());
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
   }
 
   late final StreamSubscription<dynamic> _subscription;

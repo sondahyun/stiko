@@ -26,17 +26,47 @@ class FirestoreStickyRepository implements StickyRepository {
 
   @override
   Stream<List<StickyWithTodos>> watchBoard() {
-    return _stickies.orderBy('sortOrder').snapshots().map(
-          (QuerySnapshot<Map<String, dynamic>> snap) =>
-              snap.docs.map(_toStickyWithTodos).toList(),
+    return _stickies
+        .orderBy('sortOrder')
+        .snapshots()
+        .map(
+          (QuerySnapshot<Map<String, dynamic>> snap) => snap.docs
+              .where((doc) => doc.data()['deletedAt'] == null)
+              .map(_toStickyWithTodos)
+              .toList(),
         );
+  }
+
+  @override
+  Stream<List<StickyWithTodos>> watchTrash() {
+    return _stickies.snapshots().map((
+      QuerySnapshot<Map<String, dynamic>> snap,
+    ) {
+      final List<StickyWithTodos> items = snap.docs
+          .where((doc) => doc.data()['deletedAt'] != null)
+          .map(_toStickyWithTodos)
+          .toList();
+      items.sort(
+        (StickyWithTodos a, StickyWithTodos b) =>
+            (b.sticky.deletedAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+                .compareTo(
+                  a.sticky.deletedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+                ),
+      );
+      return items;
+    });
   }
 
   /// Watches a single sticky, for a standalone sticky window.
   Stream<StickyWithTodos?> watchSticky(String stickyId) {
-    return _stickies.doc(stickyId).snapshots().map(
+    return _stickies
+        .doc(stickyId)
+        .snapshots()
+        .map(
           (DocumentSnapshot<Map<String, dynamic>> doc) =>
-              doc.exists ? _toStickyWithTodos(doc) : null,
+              doc.exists && doc.data()?['deletedAt'] == null
+              ? _toStickyWithTodos(doc)
+              : null,
         );
   }
 
@@ -52,6 +82,7 @@ class FirestoreStickyRepository implements StickyRepository {
       'sortOrder': order,
       'createdAt': Timestamp.fromDate(now),
       'updatedAt': Timestamp.fromDate(now),
+      'deletedAt': null,
       'todos': <Map<String, dynamic>>[],
     });
     return Sticky(
@@ -62,6 +93,7 @@ class FirestoreStickyRepository implements StickyRepository {
       sortOrder: order,
       createdAt: now,
       updatedAt: now,
+      deletedAt: null,
     );
   }
 
@@ -87,7 +119,25 @@ class FirestoreStickyRepository implements StickyRepository {
       });
 
   @override
-  Future<void> deleteSticky(String stickyId) => _stickies.doc(stickyId).delete();
+  Future<void> moveStickyToTrash(String stickyId) {
+    final DateTime now = _clock();
+    return _stickies.doc(stickyId).update(<String, dynamic>{
+      'deletedAt': Timestamp.fromDate(now),
+      'updatedAt': Timestamp.fromDate(now),
+    });
+  }
+
+  @override
+  Future<void> restoreSticky(String stickyId) {
+    return _stickies.doc(stickyId).update(<String, dynamic>{
+      'deletedAt': null,
+      'updatedAt': Timestamp.fromDate(_clock()),
+    });
+  }
+
+  @override
+  Future<void> deleteSticky(String stickyId) =>
+      _stickies.doc(stickyId).delete();
 
   @override
   Future<void> reorderStickies(List<Sticky> ordered) async {
@@ -172,36 +222,39 @@ class FirestoreStickyRepository implements StickyRepository {
       sortOrder: (data['sortOrder'] as num?)?.toInt() ?? 0,
       createdAt: _toDate(data['createdAt']),
       updatedAt: _toDate(data['updatedAt']),
+      deletedAt: _toNullableDate(data['deletedAt']),
     );
-    final List<Todo> todos = ((data['todos'] as List<dynamic>?) ?? <dynamic>[])
-        .map((dynamic e) => _mapToTodo(doc.id, e as Map<String, dynamic>))
-        .toList()
-      ..sort((Todo a, Todo b) => a.sortOrder.compareTo(b.sortOrder));
+    final List<Todo> todos =
+        ((data['todos'] as List<dynamic>?) ?? <dynamic>[])
+            .map((dynamic e) => _mapToTodo(doc.id, e as Map<String, dynamic>))
+            .toList()
+          ..sort((Todo a, Todo b) => a.sortOrder.compareTo(b.sortOrder));
     return StickyWithTodos(sticky, todos);
   }
 
   Todo _mapToTodo(String stickyId, Map<String, dynamic> m) => Todo(
-        id: m['id'] as String,
-        stickyId: stickyId,
-        content: m['content'] as String? ?? '',
-        isDone: m['isDone'] as bool? ?? false,
-        sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
-        createdAt: _toDate(m['createdAt']),
-        updatedAt: _toDate(m['updatedAt']),
-      );
+    id: m['id'] as String,
+    stickyId: stickyId,
+    content: m['content'] as String? ?? '',
+    isDone: m['isDone'] as bool? ?? false,
+    sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
+    createdAt: _toDate(m['createdAt']),
+    updatedAt: _toDate(m['updatedAt']),
+  );
 
   Map<String, dynamic> _todoToMap(Todo t) => <String, dynamic>{
-        'id': t.id,
-        'content': t.content,
-        'isDone': t.isDone,
-        'sortOrder': t.sortOrder,
-        'createdAt': Timestamp.fromDate(t.createdAt),
-        'updatedAt': Timestamp.fromDate(t.updatedAt),
-      };
+    'id': t.id,
+    'content': t.content,
+    'isDone': t.isDone,
+    'sortOrder': t.sortOrder,
+    'createdAt': Timestamp.fromDate(t.createdAt),
+    'updatedAt': Timestamp.fromDate(t.updatedAt),
+  };
 
-  DateTime _toDate(dynamic v) => v is Timestamp
-      ? v.toDate()
-      : DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _toDate(dynamic v) =>
+      v is Timestamp ? v.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+
+  DateTime? _toNullableDate(dynamic v) => v is Timestamp ? v.toDate() : null;
 
   /// Reads a sticky, transforms its todo array, and writes it back atomically.
   Future<void> _mutateTodos(
@@ -213,8 +266,10 @@ class FirestoreStickyRepository implements StickyRepository {
       final DocumentSnapshot<Map<String, dynamic>> snap = await tx.get(ref);
       final List<Map<String, dynamic>> todos =
           ((snap.data()?['todos'] as List<dynamic>?) ?? <dynamic>[])
-              .map((dynamic e) =>
-                  Map<String, dynamic>.from(e as Map<String, dynamic>))
+              .map(
+                (dynamic e) =>
+                    Map<String, dynamic>.from(e as Map<String, dynamic>),
+              )
               .toList();
       tx.update(ref, <String, dynamic>{
         'todos': transform(todos),

@@ -19,18 +19,21 @@ final boardStreamProvider = StreamProvider<List<StickyWithTodos>>((ref) {
   return ref.watch(stickyRepositoryProvider).watchBoard();
 });
 
+/// Reactive stream of stickies that have been moved to the trash.
+final trashStreamProvider = StreamProvider<List<StickyWithTodos>>((ref) {
+  return ref.watch(stickyRepositoryProvider).watchTrash();
+});
+
 /// Mirrors the board to the home and lock screen widgets whenever it changes.
 /// Watch this where the board is shown to keep the widget up to date.
 final widgetSyncProvider = Provider<void>((ref) {
-  ref.listen<AsyncValue<List<StickyWithTodos>>>(
-    boardStreamProvider,
-    (AsyncValue<List<StickyWithTodos>>? prev,
-        AsyncValue<List<StickyWithTodos>> next) {
-      final List<StickyWithTodos>? board = next.valueOrNull;
-      if (board != null) {
-        WidgetService.sync(board, ref.read(stickyRepositoryProvider));
-      }
-    },
-    fireImmediately: true,
-  );
+  ref.listen<AsyncValue<List<StickyWithTodos>>>(boardStreamProvider, (
+    AsyncValue<List<StickyWithTodos>>? prev,
+    AsyncValue<List<StickyWithTodos>> next,
+  ) {
+    final List<StickyWithTodos>? board = next.valueOrNull;
+    if (board != null) {
+      WidgetService.sync(board, ref.read(stickyRepositoryProvider));
+    }
+  }, fireImmediately: true);
 });

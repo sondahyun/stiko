@@ -66,6 +66,23 @@ void main() {
     expect(await db.getTodoById(todo.id), isNull);
   });
 
+  test('스티커를 휴지통으로 이동하고 복원한다', () async {
+    final Sticky sticky = await repo.addSticky(title: '복원할 메모');
+    final Todo todo = await repo.addTodo(sticky.id, '남아 있어야 할 일');
+
+    await repo.moveStickyToTrash(sticky.id);
+
+    expect(await repo.watchBoard().first, isEmpty);
+    final List<StickyWithTodos> trash = await repo.watchTrash().first;
+    expect(trash.single.sticky.id, sticky.id);
+    expect(trash.single.todos.single.id, todo.id);
+
+    await repo.restoreSticky(sticky.id);
+
+    expect((await repo.watchTrash().first), isEmpty);
+    expect((await repo.watchBoard().first).single.sticky.id, sticky.id);
+  });
+
   test('여러 스티커가 생성 순서대로 보인다', () async {
     final Sticky first = await repo.addSticky();
     final Sticky second = await repo.addSticky();

@@ -48,6 +48,15 @@ class StickyToolbar extends ConsumerWidget {
             ),
             const Spacer(),
             IconButton(
+              tooltip: '휴지통',
+              iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () => context.push(StikoRoutes.trash),
+            ),
+            IconButton(
               tooltip: '설정',
               iconSize: 18,
               padding: EdgeInsets.zero,

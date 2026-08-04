@@ -85,6 +85,17 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -94,6 +105,7 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
     sortOrder,
     createdAt,
     updatedAt,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -152,6 +164,12 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -189,6 +207,10 @@ class $StickiesTable extends Stickies with TableInfo<$StickiesTable, Sticky> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -206,6 +228,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
   const Sticky({
     required this.id,
     required this.title,
@@ -214,6 +237,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -225,6 +249,9 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -237,6 +264,9 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -253,6 +283,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -266,6 +297,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -277,6 +309,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => Sticky(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -285,6 +318,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   Sticky copyWithCompanion(StickiesCompanion data) {
     return Sticky(
@@ -297,6 +331,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -309,7 +344,8 @@ class Sticky extends DataClass implements Insertable<Sticky> {
           ..write('opacity: $opacity, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -323,6 +359,7 @@ class Sticky extends DataClass implements Insertable<Sticky> {
     sortOrder,
     createdAt,
     updatedAt,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -334,7 +371,8 @@ class Sticky extends DataClass implements Insertable<Sticky> {
           other.opacity == this.opacity &&
           other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class StickiesCompanion extends UpdateCompanion<Sticky> {
@@ -345,6 +383,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
   final Value<int> sortOrder;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const StickiesCompanion({
     this.id = const Value.absent(),
@@ -354,6 +393,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   StickiesCompanion.insert({
@@ -364,6 +404,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     this.sortOrder = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        createdAt = Value(createdAt),
@@ -376,6 +417,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -386,6 +428,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
       if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -398,6 +441,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     Value<int>? sortOrder,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return StickiesCompanion(
@@ -408,6 +452,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -436,6 +481,9 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -452,6 +500,7 @@ class StickiesCompanion extends UpdateCompanion<Sticky> {
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -953,6 +1002,7 @@ typedef $$StickiesTableCreateCompanionBuilder =
       Value<int> sortOrder,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$StickiesTableUpdateCompanionBuilder =
@@ -964,6 +1014,7 @@ typedef $$StickiesTableUpdateCompanionBuilder =
       Value<int> sortOrder,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -1032,6 +1083,11 @@ class $$StickiesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1104,6 +1160,11 @@ class $$StickiesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$StickiesTableAnnotationComposer
@@ -1137,6 +1198,9 @@ class $$StickiesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   Expression<T> todosRefs<T extends Object>(
     Expression<T> Function($$TodosTableAnnotationComposer a) f,
@@ -1199,6 +1263,7 @@ class $$StickiesTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StickiesCompanion(
                 id: id,
@@ -1208,6 +1273,7 @@ class $$StickiesTableTableManager
                 sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1219,6 +1285,7 @@ class $$StickiesTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StickiesCompanion.insert(
                 id: id,
@@ -1228,6 +1295,7 @@ class $$StickiesTableTableManager
                 sortOrder: sortOrder,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

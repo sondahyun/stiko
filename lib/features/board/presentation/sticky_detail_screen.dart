@@ -16,8 +16,9 @@ class StickyDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<StickyWithTodos>> boardAsync =
-        ref.watch(boardStreamProvider);
+    final AsyncValue<List<StickyWithTodos>> boardAsync = ref.watch(
+      boardStreamProvider,
+    );
 
     return boardAsync.when(
       loading: () =>
@@ -44,10 +45,13 @@ class StickyDetailScreen extends ConsumerWidget {
         final Sticky sticky = data.sticky;
         // Composite over white so lower opacity shows as a lighter page instead
         // of an unreadable black one (there is nothing behind on mobile).
-        final Color surface =
-            StickyColors.surface(sticky.colorIndex, sticky.opacity);
-        final String title =
-            sticky.title.trim().isNotEmpty ? sticky.title : '새 스티커';
+        final Color surface = StickyColors.surface(
+          sticky.colorIndex,
+          sticky.opacity,
+        );
+        final String title = sticky.title.trim().isNotEmpty
+            ? sticky.title
+            : '새 스티커';
         final List<Todo> ordered = completedLast(data.todos);
 
         return Scaffold(
@@ -68,11 +72,13 @@ class StickyDetailScreen extends ConsumerWidget {
                 opacity: sticky.opacity,
               ),
               IconButton(
-                tooltip: '스티커 삭제',
+                tooltip: '휴지통으로 이동',
                 icon: const Icon(Icons.delete_outline, color: Colors.black54),
-                onPressed: () {
-                  ref.read(stickyRepositoryProvider).deleteSticky(sticky.id);
-                  Navigator.of(context).pop();
+                onPressed: () async {
+                  await ref
+                      .read(stickyRepositoryProvider)
+                      .moveStickyToTrash(sticky.id);
+                  if (context.mounted) Navigator.of(context).pop();
                 },
               ),
             ],
@@ -104,7 +110,9 @@ class StickyDetailScreen extends ConsumerWidget {
       title: '제목 변경',
     );
     if (result != null) {
-      await ref.read(stickyRepositoryProvider).setStickyTitle(sticky.id, result);
+      await ref
+          .read(stickyRepositoryProvider)
+          .setStickyTitle(sticky.id, result);
     }
   }
 }
@@ -154,11 +162,11 @@ class _ReorderableTodosState extends ConsumerState<_ReorderableTodos> {
       },
       proxyDecorator: (Widget child, int i, Animation<double> a) =>
           AnimatedBuilder(
-        animation: a,
-        child: child,
-        builder: (BuildContext context, Widget? inner) =>
-            Material(type: MaterialType.transparency, child: inner),
-      ),
+            animation: a,
+            child: child,
+            builder: (BuildContext context, Widget? inner) =>
+                Material(type: MaterialType.transparency, child: inner),
+          ),
       itemBuilder: (BuildContext context, int index) {
         final Todo todo = items[index];
         // The row's text is an editable field, so long-pressing it would start

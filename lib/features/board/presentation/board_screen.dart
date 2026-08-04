@@ -40,8 +40,9 @@ class _BoardScreenState extends ConsumerState<BoardScreen>
     // On resume, apply any todos the user completed from the widget while the
     // app was in the background.
     if (state == AppLifecycleState.resumed) {
-      final List<StickyWithTodos>? board =
-          ref.read(boardStreamProvider).valueOrNull;
+      final List<StickyWithTodos>? board = ref
+          .read(boardStreamProvider)
+          .valueOrNull;
       if (board != null) {
         WidgetService.sync(board, ref.read(stickyRepositoryProvider));
       }
@@ -67,6 +68,11 @@ class _MobileBoard extends StatelessWidget {
         title: const Text('stiko'),
         actions: <Widget>[
           IconButton(
+            tooltip: '휴지통',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => context.push(StikoRoutes.trash),
+          ),
+          IconButton(
             tooltip: '설정',
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push(StikoRoutes.settings),
@@ -84,8 +90,9 @@ class _DesktopBoard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool collapsed =
-        ref.watch(stickyWindowControllerProvider.select((s) => s.collapsed));
+    final bool collapsed = ref.watch(
+      stickyWindowControllerProvider.select((s) => s.collapsed),
+    );
 
     return Scaffold(
       body: Column(
@@ -94,8 +101,9 @@ class _DesktopBoard extends ConsumerWidget {
           if (!collapsed) const Expanded(child: _BoardBody()),
         ],
       ),
-      floatingActionButton:
-          collapsed ? null : const _AddStickyButton(small: true),
+      floatingActionButton: collapsed
+          ? null
+          : const _AddStickyButton(small: true),
     );
   }
 }
@@ -193,28 +201,33 @@ class _BoardBodyState extends ConsumerState<_BoardBody> {
               final StickyWithTodos moved = items.removeAt(oldIndex);
               items.insert(newIndex, moved);
             });
-            ref.read(stickyRepositoryProvider).reorderStickies(
+            ref
+                .read(stickyRepositoryProvider)
+                .reorderStickies(
                   items.map((StickyWithTodos e) => e.sticky).toList(),
                 );
           },
-          proxyDecorator: (Widget child, int index, Animation<double> animation) {
-            // Drag just the rounded card: the default decorator adds a boxy
-            // Material shadow that bleeds past the card's corners.
-            return AnimatedBuilder(
-              animation: animation,
-              child: child,
-              builder: (BuildContext context, Widget? inner) {
-                final double t = Curves.easeInOut.transform(animation.value);
-                return Transform.scale(
-                  scale: 1 + 0.03 * t,
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: inner,
-                  ),
+          proxyDecorator:
+              (Widget child, int index, Animation<double> animation) {
+                // Drag just the rounded card: the default decorator adds a boxy
+                // Material shadow that bleeds past the card's corners.
+                return AnimatedBuilder(
+                  animation: animation,
+                  child: child,
+                  builder: (BuildContext context, Widget? inner) {
+                    final double t = Curves.easeInOut.transform(
+                      animation.value,
+                    );
+                    return Transform.scale(
+                      scale: 1 + 0.03 * t,
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: inner,
+                      ),
+                    );
+                  },
                 );
               },
-            );
-          },
           itemBuilder: (BuildContext context, int index) {
             final StickyWithTodos item = items[index];
             if (isDesktop) {
@@ -271,31 +284,36 @@ class _EmptyBoard extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) =>
           SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(Icons.sticky_note_2_outlined,
-                      size: 56, color: scheme.outline),
-                  const SizedBox(height: 12),
-                  Text('스티커가 없습니다',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 6),
-                  Text(
-                    '+ 를 눌러 첫 스티커를 만들어 보세요',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: scheme.outline),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Icons.sticky_note_2_outlined,
+                        size: 56,
+                        color: scheme.outline,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '스티커가 없습니다',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '+ 를 눌러 첫 스티커를 만들어 보세요',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: scheme.outline),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 }

@@ -12,6 +12,7 @@ class Stickies extends Table {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -43,38 +44,59 @@ class StickyWithTodos {
 /// Orders todos with incomplete ones first and completed ones sunk to the
 /// bottom, matching how the widget shows them. Each group keeps its saved order.
 List<Todo> completedLast(List<Todo> todos) => <Todo>[
-      ...todos.where((Todo t) => !t.isDone),
-      ...todos.where((Todo t) => t.isDone),
-    ];
+  ...todos.where((Todo t) => !t.isDone),
+  ...todos.where((Todo t) => t.isDone),
+];
 
 @DriftDatabase(tables: [Stickies, Todos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
-      : super(executor ?? driftDatabase(name: 'stiko'));
+    : super(executor ?? driftDatabase(name: 'stiko'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (Migrator m, int from, int to) async {
-          // No production data yet, so recreate the schema from scratch.
-          for (final table in allTables) {
-            await m.deleteTable(table.actualTableName);
-          }
-          await m.createAll();
-        },
-      );
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 4) {
+        for (final table in allTables) {
+          await m.deleteTable(table.actualTableName);
+        }
+        await m.createAll();
+        return;
+      }
+      if (from < 5) {
+        await m.addColumn(stickies, stickies.deletedAt);
+      }
+    },
+  );
 
   /// Emits every sticky with its todos, ordered for display, on each change.
-  Stream<List<StickyWithTodos>> watchBoard() {
-    final query = select(stickies).join(<Join>[
-      leftOuterJoin(todos, todos.stickyId.equalsExp(stickies.id)),
-    ])
-      ..orderBy(<OrderingTerm>[
-        OrderingTerm(expression: stickies.sortOrder),
-        OrderingTerm(expression: todos.sortOrder),
-      ]);
+  Stream<List<StickyWithTodos>> watchBoard() => _watchStickies(trashed: false);
+
+  /// Emits soft-deleted stickies so they can be restored or removed forever.
+  Stream<List<StickyWithTodos>> watchTrash() => _watchStickies(trashed: true);
+
+  Stream<List<StickyWithTodos>> _watchStickies({required bool trashed}) {
+    final query =
+        select(stickies).join(<Join>[
+            leftOuterJoin(todos, todos.stickyId.equalsExp(stickies.id)),
+          ])
+          ..where(
+            trashed
+                ? stickies.deletedAt.isNotNull()
+                : stickies.deletedAt.isNull(),
+          )
+          ..orderBy(<OrderingTerm>[
+            if (trashed)
+              OrderingTerm(
+                expression: stickies.deletedAt,
+                mode: OrderingMode.desc,
+              ),
+            OrderingTerm(expression: stickies.sortOrder),
+            OrderingTerm(expression: todos.sortOrder),
+          ]);
 
     return query.watch().map((rows) {
       final grouped = <String, StickyWithTodos>{};
@@ -111,6 +133,21 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateStickyTitle(String id, String title, DateTime now) {
     return (update(stickies)..where((t) => t.id.equals(id))).write(
       StickiesCompanion(title: Value(title), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> moveStickyToTrash(String id, DateTime now) {
+    return (update(stickies)..where((t) => t.id.equals(id))).write(
+      StickiesCompanion(deletedAt: Value(now), updatedAt: Value(now)),
+    );
+  }
+
+  Future<void> restoreSticky(String id, DateTime now) {
+    return (update(stickies)..where((t) => t.id.equals(id))).write(
+      StickiesCompanion(
+        deletedAt: const Value<DateTime?>(null),
+        updatedAt: Value(now),
+      ),
     );
   }
 
