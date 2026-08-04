@@ -9,4 +9,5 @@
     android:previewLayout="@layout/stiko_widget"
     android:resizeMode="horizontal|vertical"
     android:configure="io.github.sondahyun.stiko.StikoWidgetConfigActivity"
+    android:widgetFeatures="reconfigurable"
     android:widgetCategory="home_screen" />

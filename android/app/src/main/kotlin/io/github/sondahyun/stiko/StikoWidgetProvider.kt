@@ -91,8 +91,14 @@ class StikoWidgetProvider : HomeWidgetProvider() {
         appWidgetIds: IntArray,
         widgetData: SharedPreferences,
     ) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         for (widgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.stiko_widget)
+
+            // Per-widget background transparency (default 50%).
+            val opacity = prefs.getInt("widget_opacity_$widgetId", 50)
+                .coerceIn(10, 100)
+            views.setFloat(R.id.bg, "setAlpha", opacity / 100f)
 
             val serviceIntent = Intent(context, StikoWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
