@@ -48,6 +48,7 @@ class StickyDetailScreen extends ConsumerWidget {
             StickyColors.surface(sticky.colorIndex, sticky.opacity);
         final String title =
             sticky.title.trim().isNotEmpty ? sticky.title : '새 스티커';
+        final List<Todo> ordered = completedLast(data.todos);
 
         return Scaffold(
           backgroundColor: surface,
@@ -76,12 +77,15 @@ class StickyDetailScreen extends ConsumerWidget {
               ),
             ],
           ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(8, 8, 12, 24),
+          body: Column(
             children: <Widget>[
-              for (final Todo todo in completedLast(data.todos))
-                TodoLine(key: ValueKey<String>(todo.id), todo: todo),
-              AddTodoLine(stickyId: sticky.id),
+              Expanded(
+                child: _ReorderableTodos(stickyId: sticky.id, todos: ordered),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 12, 16),
+                child: AddTodoLine(stickyId: sticky.id),
+              ),
             ],
           ),
         );
@@ -102,5 +106,67 @@ class StickyDetailScreen extends ConsumerWidget {
     if (result != null) {
       await ref.read(stickyRepositoryProvider).setStickyTitle(sticky.id, result);
     }
+  }
+}
+
+/// The checklist, reorderable by long-pressing a row and dragging. Keeps the
+/// just-dragged order locally (optimistic) so it doesn't flicker while the
+/// cloud stream catches up.
+class _ReorderableTodos extends ConsumerStatefulWidget {
+  const _ReorderableTodos({required this.stickyId, required this.todos});
+
+  final String stickyId;
+  final List<Todo> todos;
+
+  @override
+  ConsumerState<_ReorderableTodos> createState() => _ReorderableTodosState();
+}
+
+class _ReorderableTodosState extends ConsumerState<_ReorderableTodos> {
+  List<Todo>? _order;
+
+  List<Todo> _reconcile(List<Todo> todos) {
+    final List<Todo>? prev = _order;
+    final Map<String, Todo> byId = <String, Todo>{
+      for (final Todo t in todos) t.id: t,
+    };
+    if (prev == null ||
+        prev.length != todos.length ||
+        prev.any((Todo t) => !byId.containsKey(t.id))) {
+      return _order = List<Todo>.of(todos);
+    }
+    return _order = <Todo>[for (final Todo t in prev) byId[t.id]!];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Todo> items = _reconcile(widget.todos);
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
+      buildDefaultDragHandles: false,
+      itemCount: items.length,
+      onReorderItem: (int oldIndex, int newIndex) {
+        setState(() {
+          final Todo moved = items.removeAt(oldIndex);
+          items.insert(newIndex, moved);
+        });
+        ref.read(stickyRepositoryProvider).reorderTodos(items);
+      },
+      proxyDecorator: (Widget child, int i, Animation<double> a) =>
+          AnimatedBuilder(
+        animation: a,
+        child: child,
+        builder: (BuildContext context, Widget? inner) =>
+            Material(type: MaterialType.transparency, child: inner),
+      ),
+      itemBuilder: (BuildContext context, int index) {
+        final Todo todo = items[index];
+        return ReorderableDelayedDragStartListener(
+          key: ValueKey<String>(todo.id),
+          index: index,
+          child: TodoLine(todo: todo),
+        );
+      },
+    );
   }
 }

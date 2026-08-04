@@ -137,11 +137,37 @@ Future<String?> _promptTitle(BuildContext context) {
   );
 }
 
-class _BoardBody extends ConsumerWidget {
+class _BoardBody extends ConsumerStatefulWidget {
   const _BoardBody();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BoardBody> createState() => _BoardBodyState();
+}
+
+class _BoardBodyState extends ConsumerState<_BoardBody> {
+  // Optimistic order: the just-dragged order is kept until the stream catches
+  // up, so a reorder does not flicker back to the old order.
+  List<StickyWithTodos>? _order;
+
+  List<StickyWithTodos> _reconcile(List<StickyWithTodos> board) {
+    final List<StickyWithTodos>? prev = _order;
+    final Map<String, StickyWithTodos> byId = <String, StickyWithTodos>{
+      for (final StickyWithTodos s in board) s.sticky.id: s,
+    };
+    if (prev == null ||
+        prev.length != board.length ||
+        prev.any((StickyWithTodos s) => !byId.containsKey(s.sticky.id))) {
+      // First build, or stickers added / removed: adopt the stream order.
+      return _order = List<StickyWithTodos>.of(board);
+    }
+    // Same stickers: keep the local order but refresh each item's data.
+    return _order = <StickyWithTodos>[
+      for (final StickyWithTodos s in prev) byId[s.sticky.id]!,
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final boardAsync = ref.watch(boardStreamProvider);
 
     return boardAsync.when(
@@ -153,21 +179,44 @@ class _BoardBody extends ConsumerWidget {
         ),
       ),
       data: (board) {
-        if (board.isEmpty) return const _EmptyBoard();
+        if (board.isEmpty) {
+          _order = null;
+          return const _EmptyBoard();
+        }
+        final List<StickyWithTodos> items = _reconcile(board);
         return ReorderableListView.builder(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
           buildDefaultDragHandles: false,
-          itemCount: board.length,
+          itemCount: items.length,
           onReorderItem: (int oldIndex, int newIndex) {
-            final List<StickyWithTodos> reordered = <StickyWithTodos>[...board];
-            final StickyWithTodos moved = reordered.removeAt(oldIndex);
-            reordered.insert(newIndex, moved);
+            setState(() {
+              final StickyWithTodos moved = items.removeAt(oldIndex);
+              items.insert(newIndex, moved);
+            });
             ref.read(stickyRepositoryProvider).reorderStickies(
-                  reordered.map((StickyWithTodos e) => e.sticky).toList(),
+                  items.map((StickyWithTodos e) => e.sticky).toList(),
                 );
           },
+          proxyDecorator: (Widget child, int index, Animation<double> animation) {
+            // Drag just the rounded card: the default decorator adds a boxy
+            // Material shadow that bleeds past the card's corners.
+            return AnimatedBuilder(
+              animation: animation,
+              child: child,
+              builder: (BuildContext context, Widget? inner) {
+                final double t = Curves.easeInOut.transform(animation.value);
+                return Transform.scale(
+                  scale: 1 + 0.03 * t,
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: inner,
+                  ),
+                );
+              },
+            );
+          },
           itemBuilder: (BuildContext context, int index) {
-            final item = board[index];
+            final StickyWithTodos item = items[index];
             return ReorderableDelayedDragStartListener(
               key: ValueKey<String>('sticky-${item.sticky.id}'),
               index: index,
