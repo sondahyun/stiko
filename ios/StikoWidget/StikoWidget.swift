@@ -278,6 +278,25 @@ struct StikoWidgetEntryView: View {
   }
 
   var body: some View {
+    bodyContent.widgetURL(tapURL)
+  }
+
+  /// Only home screen widgets open the app on a body tap. Lock screen
+  /// (accessory) widgets get no URL, so a body tap does nothing and only the
+  /// toggle and ◀▶ pager buttons stay interactive.
+  private var tapURL: URL? {
+    switch family {
+    case .systemSmall, .systemMedium, .systemLarge:
+      return entry.key == "all"
+        ? URL(string: "stiko://board")
+        : URL(string: "stiko://sticker/\(entry.key)")
+    default:
+      return nil
+    }
+  }
+
+  @ViewBuilder
+  private var bodyContent: some View {
     switch family {
     case .accessoryInline:
       Text(entry.todos.first(where: { !$0.done })?.content ?? "할 일 없음")
@@ -348,9 +367,6 @@ struct StikoWidget: Widget {
     ) { entry in
       StikoWidgetEntryView(entry: entry)
         .containerBackground(.fill.tertiary, for: .widget)
-        .widgetURL(entry.key == "all"
-                   ? URL(string: "stiko://board")
-                   : URL(string: "stiko://sticker/\(entry.key)"))
     }
     .configurationDisplayName("stiko 할 일")
     .description("할 일을 보고 눌러서 완료합니다. 길게 눌러 위젯을 편집하면 스티커를 고를 수 있어요.")
