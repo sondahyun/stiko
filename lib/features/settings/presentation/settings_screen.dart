@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,8 +19,21 @@ class SettingsScreen extends ConsumerWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final email = ref.watch(authStateProvider).valueOrNull?.email;
 
+    // On macOS the window's traffic lights sit at the top-left, so inset the
+    // back button and title to keep them from overlapping the close button.
+    final double leftInset =
+        defaultTargetPlatform == TargetPlatform.macOS ? 72 : 0;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('설정')),
+      appBar: AppBar(
+        titleSpacing: 0,
+        leadingWidth: leftInset + 44,
+        leading: Padding(
+          padding: EdgeInsets.only(left: leftInset),
+          child: const BackButton(),
+        ),
+        title: const Text('설정', style: TextStyle(fontSize: 17)),
+      ),
       body: ListView(
         children: <Widget>[
           const _SectionHeader('계정'),
