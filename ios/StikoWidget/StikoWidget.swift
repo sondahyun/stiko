@@ -57,10 +57,15 @@ private func loadStickers() -> [StickerData] {
 
 /// Resolves what a widget should show given its configured sticker id.
 /// nil id means "all" and falls back to the globally filtered list.
-private func resolve(stickerId: String?) -> (title: String?, todos: [TodoItem]) {
-  guard let sid = stickerId else { return (nil, loadTodos()) }
-  guard let s = loadStickers().first(where: { $0.id == sid }) else { return (nil, []) }
-  return (s.name.isEmpty ? nil : s.name, s.todos)
+private func resolve(stickerId: String?) -> (title: String?, key: String, todos: [TodoItem]) {
+  guard let sid = stickerId else { return (nil, "all", loadTodos()) }
+  guard let s = loadStickers().first(where: { $0.id == sid }) else { return (nil, sid, []) }
+  return (s.name.isEmpty ? nil : s.name, sid, s.todos)
+}
+
+/// The paging offset stored per sticker key, so each widget browses independently.
+private func loadPage(key: String) -> Int {
+  UserDefaults(suiteName: appGroupId)?.integer(forKey: "page_\(key)") ?? 0
 }
 
 // MARK: - Sticker picker (widget configuration)
@@ -100,8 +105,10 @@ struct SelectStickerIntent: WidgetConfigurationIntent {
   init(sticker: StickerEntity?) { self.sticker = sticker }
 }
 
-// MARK: - Toggle intent (interactive, iOS 17+)
+// MARK: - Interactive intents (iOS 17+)
 
+/// Flips a todo's done state in place (strikethrough), and records it as pending
+/// so the app persists the change to the cloud on its next resume.
 struct ToggleTodoIntent: AppIntent {
   static var title: LocalizedStringResource = "할 일 완료"
 
@@ -115,8 +122,6 @@ struct ToggleTodoIntent: AppIntent {
     let defaults = UserDefaults(suiteName: appGroupId)
     var newDone = true
 
-    // Flip the tapped todo in the flat list so it gets (or loses) a
-    // strikethrough in place instead of disappearing.
     if let raw = defaults?.string(forKey: "todos"),
        let data = raw.data(using: .utf8),
        var arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
@@ -130,7 +135,6 @@ struct ToggleTodoIntent: AppIntent {
       }
     }
 
-    // Mirror the flip into the per-sticker breakdown too.
     if let raw = defaults?.string(forKey: "stickers"),
        let data = raw.data(using: .utf8),
        var stickers = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
@@ -149,7 +153,6 @@ struct ToggleTodoIntent: AppIntent {
       }
     }
 
-    // Record the change so the app persists it to the cloud on its next resume.
     var pending: [[String: Any]] = []
     if let raw = defaults?.string(forKey: "pending"),
        let data = raw.data(using: .utf8),
@@ -167,28 +170,53 @@ struct ToggleTodoIntent: AppIntent {
   }
 }
 
+/// iOS widgets can't scroll, so this pages the list on tap instead. Stores the
+/// target page for the widget's sticker key and reloads.
+struct PageIntent: AppIntent {
+  static var title: LocalizedStringResource = "페이지 이동"
+
+  @Parameter(title: "key")
+  var key: String
+  @Parameter(title: "page")
+  var page: Int
+
+  init() {}
+  init(key: String, page: Int) { self.key = key; self.page = page }
+
+  func perform() async throws -> some IntentResult {
+    UserDefaults(suiteName: appGroupId)?.set(max(0, page), forKey: "page_\(key)")
+    WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+    return .result()
+  }
+}
+
 // MARK: - Timeline
 
 struct StikoEntry: TimelineEntry {
   let date: Date
   let title: String?
+  let key: String
+  let page: Int
   let todos: [TodoItem]
 }
 
 struct Provider: AppIntentTimelineProvider {
   func placeholder(in context: Context) -> StikoEntry {
-    StikoEntry(date: Date(), title: nil,
+    StikoEntry(date: Date(), title: nil, key: "all", page: 0,
                todos: [TodoItem(id: "1", content: "할 일 미리보기", done: false)])
   }
 
   func snapshot(for configuration: SelectStickerIntent, in context: Context) async -> StikoEntry {
     let r = resolve(stickerId: configuration.sticker?.id)
-    return StikoEntry(date: Date(), title: r.title, todos: r.todos)
+    return StikoEntry(date: Date(), title: r.title, key: r.key,
+                      page: loadPage(key: r.key), todos: r.todos)
   }
 
   func timeline(for configuration: SelectStickerIntent, in context: Context) async -> Timeline<StikoEntry> {
     let r = resolve(stickerId: configuration.sticker?.id)
-    return Timeline(entries: [StikoEntry(date: Date(), title: r.title, todos: r.todos)], policy: .atEnd)
+    let entry = StikoEntry(date: Date(), title: r.title, key: r.key,
+                           page: loadPage(key: r.key), todos: r.todos)
+    return Timeline(entries: [entry], policy: .atEnd)
   }
 }
 
@@ -223,7 +251,7 @@ struct StikoWidgetEntryView: View {
 
   private var limit: Int {
     switch family {
-    case .systemSmall: return 4
+    case .systemSmall: return 3
     case .systemMedium: return 5
     case .systemLarge: return 12
     case .accessoryRectangular: return 2
@@ -231,7 +259,23 @@ struct StikoWidgetEntryView: View {
     }
   }
 
-  private var overflow: Int { max(0, entry.todos.count - limit) }
+  private var pageCount: Int {
+    max(1, Int(ceil(Double(entry.todos.count) / Double(limit))))
+  }
+
+  private var page: Int { min(max(0, entry.page), pageCount - 1) }
+
+  private var slice: [TodoItem] {
+    let start = page * limit
+    let end = min(entry.todos.count, start + limit)
+    guard start < end else { return [] }
+    return Array(entry.todos[start ..< end])
+  }
+
+  // Paging controls make sense only where there's room (home screen sizes).
+  private var canPage: Bool {
+    pageCount > 1 && family != .accessoryRectangular
+  }
 
   var body: some View {
     switch family {
@@ -257,15 +301,28 @@ struct StikoWidgetEntryView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
         } else {
-          ForEach(entry.todos.prefix(limit)) { todo in
+          ForEach(slice) { todo in
             TodoRow(todo: todo)
           }
-          // iOS widgets can't scroll, so surface how many more remain; tapping
-          // the widget body opens the app to see the full list.
-          if overflow > 0 {
-            Text("+\(overflow)개 더")
-              .font(.caption2)
-              .foregroundStyle(.secondary)
+          if canPage {
+            HStack(spacing: 12) {
+              if page > 0 {
+                Button(intent: PageIntent(key: entry.key, page: page - 1)) {
+                  Image(systemName: "chevron.left").font(.caption)
+                }
+                .buttonStyle(.plain)
+              }
+              Text("\(page + 1)/\(pageCount)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+              if page < pageCount - 1 {
+                Button(intent: PageIntent(key: entry.key, page: page + 1)) {
+                  Image(systemName: "chevron.right").font(.caption)
+                }
+                .buttonStyle(.plain)
+              }
+            }
+            .padding(.top, 1)
           }
         }
         Spacer(minLength: 0)
