@@ -8,10 +8,9 @@ import '../../app/theme.dart';
 import '../../core/app_zoom.dart';
 import '../../core/title_dialog.dart';
 import '../../data/firestore_sticky_repository.dart';
-import '../../data/local/database.dart'
-    show StickyWithTodos, Todo, completedLast;
+import '../../data/local/database.dart' show StickyWithTodos, Todo;
 import '../sticky/application/sticky_window.dart';
-import 'sticky_window_todo_line.dart';
+import 'sticky_window_todo_list.dart';
 
 /// Root widget of a standalone sticky window (one OS window per sticky).
 class StickyWindowRoot extends StatelessWidget {
@@ -370,41 +369,36 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
   }
 
   Widget _todoList(StickyWithTodos data) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(4, 4, 12, 12),
-      children: <Widget>[
-        for (final Todo t in completedLast(data.todos))
-          StickyWindowTodoLine(
-            key: ValueKey<String>(t.id),
-            todo: t,
-            onToggle: (bool value) => _repo.toggleTodo(t.id, value),
-            onEdit: (String content) => _repo.editTodoContent(t.id, content),
-            onDelete: () => _repo.deleteTodo(t.id),
+    return StickyWindowTodoList(
+      todos: data.todos,
+      onToggle: (Todo todo, bool value) => _repo.toggleTodo(todo.id, value),
+      onEdit: (Todo todo, String content) =>
+          _repo.editTodoContent(todo.id, content),
+      onDelete: (Todo todo) => _repo.deleteTodo(todo.id),
+      onReorder: _repo.reorderTodos,
+      addRow: Row(
+        children: <Widget>[
+          const SizedBox(
+            width: 40,
+            child: Icon(Icons.add, size: 18, color: Colors.black38),
           ),
-        Row(
-          children: <Widget>[
-            const SizedBox(
-              width: 40,
-              child: Icon(Icons.add, size: 18, color: Colors.black38),
-            ),
-            Expanded(
-              child: TextField(
-                controller: _addController,
-                focusNode: _addFocus,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _add(),
-                style: const TextStyle(color: Colors.black87),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  hintText: '할 일 입력...',
-                  hintStyle: TextStyle(color: Colors.black38),
-                  border: InputBorder.none,
-                ),
+          Expanded(
+            child: TextField(
+              controller: _addController,
+              focusNode: _addFocus,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _add(),
+              style: const TextStyle(color: Colors.black87),
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: '할 일 입력...',
+                hintStyle: TextStyle(color: Colors.black38),
+                border: InputBorder.none,
               ),
             ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

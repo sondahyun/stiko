@@ -12,12 +12,14 @@ class StickyWindowTodoLine extends StatefulWidget {
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
+    this.dragHandle,
   });
 
   final Todo todo;
   final Future<void> Function(bool isDone) onToggle;
   final Future<void> Function(String content) onEdit;
   final Future<void> Function() onDelete;
+  final Widget? dragHandle;
 
   @override
   State<StickyWindowTodoLine> createState() => _StickyWindowTodoLineState();
@@ -122,6 +124,7 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
             ),
           ),
         ),
+        if (widget.dragHandle != null) widget.dragHandle!,
       ],
     );
   }
