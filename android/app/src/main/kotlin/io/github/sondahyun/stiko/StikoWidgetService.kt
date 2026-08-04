@@ -3,6 +3,7 @@ package io.github.sondahyun.stiko
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
@@ -86,13 +87,16 @@ class StikoRemoteViewsFactory(
         // The list's PendingIntent template supplies the component; these fill-in
         // intents add what was tapped. Circle toggles the todo; the text opens
         // that todo's sticker in the app.
+        // Unique data per row so each fill-in is a distinct PendingIntent.
         val toggleFill = Intent().apply {
+            data = Uri.parse("stiko://toggle/$id")
             putExtra(StikoWidgetProvider.EXTRA_KIND, StikoWidgetProvider.KIND_TOGGLE)
             putExtra(StikoWidgetProvider.EXTRA_ID, id)
         }
         views.setOnClickFillInIntent(R.id.row_circle, toggleFill)
 
         val openFill = Intent().apply {
+            data = Uri.parse("stiko://open/$id")
             putExtra(StikoWidgetProvider.EXTRA_KIND, StikoWidgetProvider.KIND_OPEN)
             putExtra(StikoWidgetProvider.EXTRA_STICKY, stickyId)
         }

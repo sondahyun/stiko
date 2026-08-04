@@ -86,8 +86,20 @@ class StikoWidgetProvider : HomeWidgetProvider() {
             if (obj.optString("id") != id) pending.put(obj)
         }
         pending.put(JSONObject().put("id", id).put("done", newDone))
+
+        // Mirror the flip into the per-sticker breakdown so a widget filtered to
+        // one sticker also updates in place.
+        val stickers = JSONArray(prefs.getString("stickers", "[]") ?: "[]")
+        for (i in 0 until stickers.length()) {
+            val arr = stickers.getJSONObject(i).optJSONArray("todos") ?: continue
+            for (j in 0 until arr.length()) {
+                val o = arr.getJSONObject(j)
+                if (o.optString("id") == id) o.put("done", newDone)
+            }
+        }
         prefs.edit()
             .putString("todos", todos.toString())
+            .putString("stickers", stickers.toString())
             .putString("pending", pending.toString())
             .apply()
     }
@@ -117,11 +129,11 @@ class StikoWidgetProvider : HomeWidgetProvider() {
             views.setRemoteAdapter(R.id.list, serviceIntent)
             views.setEmptyView(R.id.list, R.id.empty)
 
-            // Template for row taps; must be mutable so each row's fill-in intent
-            // can add the todo id.
+            // Template for row taps; mutable so each row's fill-in can add its
+            // data + extras. IMPORTANT: no data here, otherwise every row shares
+            // one PendingIntent and per-row taps stop registering.
             val templateIntent = Intent(context, StikoWidgetProvider::class.java).apply {
                 action = ACTION_TOGGLE
-                data = Uri.parse("stiko://toggle")
             }
             val template = PendingIntent.getBroadcast(
                 context,
