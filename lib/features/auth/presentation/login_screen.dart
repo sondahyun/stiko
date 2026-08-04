@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../application/auth_providers.dart';
 import '../application/auth_service.dart';
+import 'auth_window_scaffold.dart';
 
 /// Email / password sign-in screen.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -35,15 +36,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      await ref.read(authServiceProvider).signIn(
-            email: _email.text.trim(),
-            password: _password.text,
-          );
+      await ref
+          .read(authServiceProvider)
+          .signIn(email: _email.text.trim(), password: _password.text);
       // Successful sign-in triggers a redirect to the board.
     } catch (e) {
       if (mounted) {
-        setState(() => _error =
-            e is AuthException ? e.message : '로그인에 실패했습니다. 다시 시도해 주세요.');
+        setState(
+          () => _error = e is AuthException
+              ? e.message
+              : '로그인에 실패했습니다. 다시 시도해 주세요.',
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -52,8 +55,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
+    return AuthWindowScaffold(
+      child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
@@ -67,10 +70,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'stiko',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -87,8 +89,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       labelText: '이메일',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (String? v) =>
-                        (v == null || !v.contains('@')) ? '올바른 이메일을 입력하세요' : null,
+                    validator: (String? v) => (v == null || !v.contains('@'))
+                        ? '올바른 이메일을 입력하세요'
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -106,8 +109,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _error!,
-                      style:
-                          TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 20),

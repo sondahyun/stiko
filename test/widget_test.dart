@@ -158,25 +158,38 @@ void main() {
       overrides: <Override>[
         stickyRepositoryProvider.overrideWithValue(repo),
         authServiceProvider.overrideWithValue(
-          FakeAuthService(user: const AppUser(uid: 'u', email: 't@t.com')),
+          FakeAuthService(
+            user: const AppUser(uid: 'u', email: 't@t.com'),
+          ),
         ),
       ],
       child: MaterialApp(home: child),
     );
   }
 
-  testWidgets('로그인하지 않으면 로그인 화면으로 이동한다', (tester) async {
-    await tester.pumpWidget(
-      bootstrap(
-        FakeStickyRepository(const <StickyWithTodos>[]),
-        auth: FakeAuthService(),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    '로그인하지 않으면 로그인 화면으로 이동한다',
+    (tester) async {
+      await tester.pumpWidget(
+        bootstrap(
+          FakeStickyRepository(const <StickyWithTodos>[]),
+          auth: FakeAuthService(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilledButton, '로그인'), findsOneWidget);
-    expect(find.text('스티커가 없습니다'), findsNothing);
-  });
+      expect(find.byKey(const Key('auth-window-drag-region')), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, '로그인'), findsOneWidget);
+      expect(find.text('스티커가 없습니다'), findsNothing);
+
+      await tester.tap(find.text('계정이 없으신가요? 회원가입'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('auth-window-drag-region')), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, '회원가입'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   testWidgets('로그인 상태에서 스티커가 없으면 빈 안내가 보인다', (tester) async {
     await tester.pumpWidget(
