@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
@@ -20,13 +21,22 @@ class StikoApp extends ConsumerStatefulWidget {
 class _StikoAppState extends ConsumerState<StikoApp> {
   StreamSubscription<Uri?>? _widgetClick;
 
+  bool get _supportsHomeWidget =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
   @override
   void initState() {
     super.initState();
     // Open the tapped sticker when the app is launched or resumed from a
     // widget. The widget's URL is stiko://sticker/<id> (or stiko://board).
-    _widgetClick = HomeWidget.widgetClicked.listen(_openFromWidget);
-    HomeWidget.initiallyLaunchedFromHomeWidget().then(_openFromWidget);
+    if (_supportsHomeWidget) {
+      _widgetClick = HomeWidget.widgetClicked.listen(_openFromWidget);
+      unawaited(
+        HomeWidget.initiallyLaunchedFromHomeWidget().then(_openFromWidget),
+      );
+    }
   }
 
   @override
