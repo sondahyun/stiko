@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stiko/app/app.dart';
+import 'package:stiko/core/app_zoom.dart';
 import 'package:stiko/data/local/database.dart';
 import 'package:stiko/data/sticky_repository.dart';
 import 'package:stiko/features/auth/application/auth_providers.dart';
@@ -169,6 +170,48 @@ void main() {
       child: MaterialApp(home: child),
     );
   }
+
+  testWidgets('Ctrl +, -, 0으로 전체 UI 배율을 조절한다', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AppZoom(child: ColoredBox(color: Colors.amber)),
+      ),
+    );
+    await tester.pump();
+
+    double scale() => tester
+        .widget<Transform>(find.byKey(const Key('app-zoom-transform')))
+        .transform
+        .getMaxScaleOnAxis();
+
+    expect(scale(), 1);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(scale(), closeTo(1.1, 0.001));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.minus);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(scale(), closeTo(1, 0.001));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(scale(), closeTo(1.1, 0.001));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(scale(), closeTo(1, 0.001));
+  });
 
   testWidgets(
     '로그인하지 않으면 로그인 화면으로 이동한다',

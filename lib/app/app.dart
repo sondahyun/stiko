@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_zoom.dart';
 import 'application/theme_controller.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -21,6 +22,8 @@ class StikoApp extends ConsumerWidget {
       darkTheme: StikoTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      builder: (BuildContext context, Widget? child) =>
+          AppZoom(child: child ?? const SizedBox.shrink()),
     );
   }
 }

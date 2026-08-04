@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../app/theme.dart';
+import '../../core/app_zoom.dart';
 import '../../core/title_dialog.dart';
 import '../../data/firestore_sticky_repository.dart';
 import '../../data/local/database.dart' show StickyWithTodos, Todo;
@@ -24,6 +25,8 @@ class StickyWindowRoot extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: StikoTheme.light(),
       darkTheme: StikoTheme.dark(),
+      builder: (BuildContext context, Widget? child) =>
+          AppZoom(child: child ?? const SizedBox.shrink()),
       home: StickyWindowScreen(
         stickyId: stickyId,
         uid: uid,
