@@ -98,7 +98,8 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
     } catch (error) {
       debugPrint('Failed to save sticky window position: $error');
     } finally {
-      await windowManager.destroy();
+      await windowManager.setPreventClose(false);
+      await windowManager.close();
     }
   }
 
