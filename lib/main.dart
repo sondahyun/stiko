@@ -41,6 +41,7 @@ Future<void> main(List<String> args) async {
       }
       throw MissingPluginException('Unknown window method: ${call.method}');
     });
+    await windowManager.setPreventClose(true);
 
     await windowManager.waitUntilReadyToShow(
       WindowOptions(

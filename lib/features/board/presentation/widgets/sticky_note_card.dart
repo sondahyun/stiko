@@ -13,6 +13,7 @@ import '../../../../data/local/database.dart';
 import '../../../../data/sticky_repository.dart';
 import '../../../auth/application/auth_providers.dart';
 import '../../../auth/application/auth_service.dart';
+import '../../../sticky/application/sticky_window.dart';
 import '../../application/board_providers.dart';
 
 final Set<String> _openingStickies = <String>{};
@@ -66,7 +67,12 @@ Future<void> openStickyWindow(WidgetRef ref, String stickyId) async {
     if (user == null || user.uid.isEmpty) return;
     final String uid = user.uid;
     const Size winSize = Size(300, 360);
-    final Rect frame = await _stickyWindowFrame(winSize, stickyWindowCount);
+    final Offset? savedPosition = await StickyWindowPositionStore.load(
+      stickyId,
+    );
+    final Rect frame = savedPosition == null
+        ? await _stickyWindowFrame(winSize, stickyWindowCount)
+        : await _restoredStickyWindowFrame(winSize, savedPosition);
     await WindowController.create(
       WindowConfiguration(
         hiddenAtLaunch: true,
@@ -83,6 +89,52 @@ Future<void> openStickyWindow(WidgetRef ref, String stickyId) async {
   } finally {
     _openingStickies.remove(stickyId);
   }
+}
+
+/// Restores a sticky to its last closed position. If that display is no longer
+/// connected, the frame is clamped into the primary display's work area.
+Future<Rect> _restoredStickyWindowFrame(Size size, Offset position) async {
+  try {
+    List<Display> displays;
+    try {
+      displays = await screenRetriever.getAllDisplays();
+    } catch (_) {
+      displays = <Display>[await screenRetriever.getPrimaryDisplay()];
+    }
+
+    Display? display;
+    for (final Display candidate in displays) {
+      final Offset origin = candidate.visiblePosition ?? Offset.zero;
+      final Size workArea = candidate.visibleSize ?? candidate.size;
+      if ((origin & workArea).contains(position)) {
+        display = candidate;
+        break;
+      }
+    }
+    display ??= await screenRetriever.getPrimaryDisplay();
+    return _clampStickyWindowFrame(position, size, display, margin: 0);
+  } catch (_) {
+    return position & size;
+  }
+}
+
+Rect _clampStickyWindowFrame(
+  Offset position,
+  Size size,
+  Display display, {
+  required double margin,
+}) {
+  final Offset origin = display.visiblePosition ?? Offset.zero;
+  final Size workArea = display.visibleSize ?? display.size;
+  final double minLeft = origin.dx + margin;
+  final double minTop = origin.dy + margin;
+  final double maxLeft = origin.dx + workArea.width - size.width - margin;
+  final double maxTop = origin.dy + workArea.height - size.height - margin;
+  return Offset(
+        position.dx.clamp(minLeft, maxLeft < minLeft ? minLeft : maxLeft),
+        position.dy.clamp(minTop, maxTop < minTop ? minTop : maxTop),
+      ) &
+      size;
 }
 
 String? _stickyIdFromArguments(String arguments) {
@@ -123,24 +175,20 @@ Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
     }
     display ??= await screenRetriever.getPrimaryDisplay();
 
+    double left = cursor.dx + margin + cascade;
     final Offset origin = display.visiblePosition ?? Offset.zero;
     final Size workArea = display.visibleSize ?? display.size;
-    final double minLeft = origin.dx + margin;
-    final double minTop = origin.dy + margin;
     final double maxLeft = origin.dx + workArea.width - size.width - margin;
-    final double maxTop = origin.dy + workArea.height - size.height - margin;
-
-    double left = cursor.dx + margin + cascade;
     if (left > maxLeft) {
       left = cursor.dx - size.width - margin - cascade;
     }
     final double top = cursor.dy - 44 + cascade;
-
-    return Offset(
-          left.clamp(minLeft, maxLeft < minLeft ? minLeft : maxLeft),
-          top.clamp(minTop, maxTop < minTop ? minTop : maxTop),
-        ) &
-        size;
+    return _clampStickyWindowFrame(
+      Offset(left, top),
+      size,
+      display,
+      margin: margin,
+    );
   } catch (_) {
     return Offset(500 + cascade, 120 + cascade) & size;
   }

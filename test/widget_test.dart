@@ -15,6 +15,7 @@ import 'package:stiko/features/auth/application/auth_service.dart';
 import 'package:stiko/features/board/application/board_providers.dart';
 import 'package:stiko/features/board/presentation/sticky_detail_screen.dart';
 import 'package:stiko/features/board/presentation/widgets/sticky_note_card.dart';
+import 'package:stiko/features/sticky/application/sticky_window.dart';
 
 Sticky _sticky({
   String id = 's1',
@@ -316,6 +317,22 @@ void main() {
       expect(windowArguments['uid'], 'u');
       expect(windowArguments['left'], 424);
       expect(windowArguments['top'], 256);
+
+      await StickyWindowPositionStore.save('s1', const Offset(760, 210));
+      await tester.tap(find.text('할일'));
+      await tester.pumpAndSettle();
+
+      final List<MethodCall> reopenedCreateCalls = calls
+          .where((MethodCall call) => call.method == 'createWindow')
+          .toList();
+      expect(reopenedCreateCalls, hasLength(2));
+      final Map<Object?, Object?> reopenedConfiguration =
+          reopenedCreateCalls.last.arguments as Map<Object?, Object?>;
+      final Map<String, dynamic> reopenedArguments =
+          jsonDecode(reopenedConfiguration['arguments']! as String)
+              as Map<String, dynamic>;
+      expect(reopenedArguments['left'], 760);
+      expect(reopenedArguments['top'], 210);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
@@ -7,6 +9,7 @@ import '../../core/app_zoom.dart';
 import '../../core/title_dialog.dart';
 import '../../data/firestore_sticky_repository.dart';
 import '../../data/local/database.dart' show StickyWithTodos, Todo;
+import '../sticky/application/sticky_window.dart';
 
 /// Root widget of a standalone sticky window (one OS window per sticky).
 class StickyWindowRoot extends StatelessWidget {
@@ -51,7 +54,8 @@ class StickyWindowScreen extends StatefulWidget {
   State<StickyWindowScreen> createState() => _StickyWindowScreenState();
 }
 
-class _StickyWindowScreenState extends State<StickyWindowScreen> {
+class _StickyWindowScreenState extends State<StickyWindowScreen>
+    with WindowListener {
   late final FirestoreStickyRepository _repo;
   late final Stream<StickyWithTodos?> _stickyStream;
   final TextEditingController _addController = TextEditingController();
@@ -61,6 +65,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
   bool _collapsed = false;
   bool _pinned = false;
   bool _resizing = false;
+  bool _closing = false;
   double _expandedHeight = 360;
 
   @override
@@ -68,13 +73,33 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
     super.initState();
     _repo = FirestoreStickyRepository(uid: widget.uid);
     _stickyStream = _repo.watchSticky(widget.stickyId);
+    windowManager.addListener(this);
   }
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     _addController.dispose();
     _addFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void onWindowClose() {
+    unawaited(_savePositionAndClose());
+  }
+
+  Future<void> _savePositionAndClose() async {
+    if (_closing) return;
+    _closing = true;
+    try {
+      final Offset position = await windowManager.getPosition();
+      await StickyWindowPositionStore.save(widget.stickyId, position);
+    } catch (error) {
+      debugPrint('Failed to save sticky window position: $error');
+    } finally {
+      await windowManager.destroy();
+    }
   }
 
   Future<void> _add() async {
