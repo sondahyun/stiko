@@ -24,11 +24,13 @@ class WidgetService {
       defaultTargetPlatform == TargetPlatform.android;
 
   /// Pushes the current board to the widget and applies any checkbox taps made
-  /// from the widget. [repo] persists those toggles.
+  /// from the widget. [repo] persists those toggles. When [stickerIds] is not
+  /// empty, only those stickers' todos are shown.
   static Future<void> sync(
     List<StickyWithTodos> board,
-    StickyRepository repo,
-  ) async {
+    StickyRepository repo, {
+    Set<String> stickerIds = const <String>{},
+  }) async {
     if (!_supported) return;
     try {
       await HomeWidget.setAppGroupId(appGroupId);
@@ -44,6 +46,9 @@ class WidgetService {
       final List<Map<String, dynamic>> open = <Map<String, dynamic>>[];
       final List<Map<String, dynamic>> completed = <Map<String, dynamic>>[];
       for (final StickyWithTodos s in board) {
+        if (stickerIds.isNotEmpty && !stickerIds.contains(s.sticky.id)) {
+          continue;
+        }
         for (final Todo t in s.todos) {
           final bool done = pending[t.id] ?? t.isDone;
           final Map<String, dynamic> entry = <String, dynamic>{
