@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,6 +29,8 @@ class WindowSettingsStore {
 /// Persists the last closed position of each standalone sticky window.
 class StickyWindowPositionStore {
   const StickyWindowPositionStore._();
+
+  static const String syncMethod = 'sticky_position_saved';
 
   static String _key(String stickyId) =>
       'window.stickyPosition.${Uri.encodeComponent(stickyId)}';
@@ -57,6 +61,49 @@ class StickyWindowPositionStore {
       _key(stickyId),
       jsonEncode(<double>[position.dx, position.dy]),
     );
+  }
+
+  /// Saves in this sticky engine and mirrors the value into the main engine.
+  ///
+  /// The Windows shared_preferences backend caches file contents per Flutter
+  /// engine. Reloading the legacy API does not invalidate that platform cache,
+  /// so a child window's disk write is otherwise invisible to the main window
+  /// until the whole app restarts.
+  static Future<void> saveAndSyncToMain(
+    String stickyId,
+    Offset position,
+  ) async {
+    await save(stickyId, position);
+    try {
+      final List<WindowController> windows = await WindowController.getAll();
+      final WindowController? mainWindow = windows
+          .where((WindowController window) => window.arguments.isEmpty)
+          .firstOrNull;
+      await mainWindow?.invokeMethod<bool>(syncMethod, <String, Object>{
+        'stickyId': stickyId,
+        'left': position.dx,
+        'top': position.dy,
+      });
+    } catch (error) {
+      debugPrint('Failed to sync sticky window position: $error');
+    }
+  }
+
+  /// Receives a child window's latest position inside the main Flutter engine.
+  static Future<dynamic> handleMainWindowMethod(MethodCall call) async {
+    if (call.method != syncMethod) {
+      throw MissingPluginException('Unknown window method: ${call.method}');
+    }
+    final Object? arguments = call.arguments;
+    if (arguments is! Map<Object?, Object?>) return false;
+    final Object? stickyId = arguments['stickyId'];
+    final Object? left = arguments['left'];
+    final Object? top = arguments['top'];
+    if (stickyId is! String || left is! num || top is! num) return false;
+    final Offset position = Offset(left.toDouble(), top.toDouble());
+    if (!position.dx.isFinite || !position.dy.isFinite) return false;
+    await save(stickyId, position);
+    return true;
   }
 }
 

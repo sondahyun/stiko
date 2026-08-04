@@ -30,10 +30,7 @@ class StickyWindowRoot extends StatelessWidget {
       darkTheme: StikoTheme.dark(),
       builder: (BuildContext context, Widget? child) =>
           AppZoom(child: child ?? const SizedBox.shrink()),
-      home: StickyWindowScreen(
-        stickyId: stickyId,
-        uid: uid,
-      ),
+      home: StickyWindowScreen(stickyId: stickyId, uid: uid),
     );
   }
 }
@@ -95,7 +92,10 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
     _closing = true;
     try {
       final Offset position = await windowManager.getPosition();
-      await StickyWindowPositionStore.save(widget.stickyId, position);
+      await StickyWindowPositionStore.saveAndSyncToMain(
+        widget.stickyId,
+        position,
+      );
     } catch (error) {
       debugPrint('Failed to save sticky window position: $error');
     } finally {
@@ -153,8 +153,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
   }
 
   Future<void> _rename(String current) async {
-    final String? result =
-        await showTitleDialog(context, initial: current, title: '제목 변경');
+    final String? result = await showTitleDialog(
+      context,
+      initial: current,
+      title: '제목 변경',
+    );
     if (result != null) await _repo.setStickyTitle(widget.stickyId, result);
   }
 
@@ -172,8 +175,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text('색상',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('색상', style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 10,
@@ -199,8 +201,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
                             ),
                           ),
                           child: i == localColor
-                              ? const Icon(Icons.check,
-                                  size: 15, color: Colors.black87)
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 15,
+                                  color: Colors.black87,
+                                )
                               : null,
                         ),
                       ),
@@ -209,11 +214,15 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
                 const SizedBox(height: 12),
                 Row(
                   children: <Widget>[
-                    const Text('투명도',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      '투명도',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const Spacer(),
-                    Text('${(localOpacity * 100).round()}%',
-                        style: const TextStyle(color: Colors.black54)),
+                    Text(
+                      '${(localOpacity * 100).round()}%',
+                      style: const TextStyle(color: Colors.black54),
+                    ),
                   ],
                 ),
                 Slider(
@@ -251,10 +260,10 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
           final String rawTitle = data?.sticky.title ?? '';
           // Truly see-through: the OS window is non-opaque (see MainFlutterWindow),
           // so a lower opacity lets the desktop show behind the sticky.
-          final Color color =
-              StickyColors.at(colorIndex).withValues(alpha: opacity);
-          final String title =
-              rawTitle.trim().isNotEmpty ? rawTitle : '새 스티커';
+          final Color color = StickyColors.at(
+            colorIndex,
+          ).withValues(alpha: opacity);
+          final String title = rawTitle.trim().isNotEmpty ? rawTitle : '새 스티커';
           return Container(
             color: color,
             child: Column(
@@ -265,8 +274,8 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
                     child: !snap.hasData
                         ? const Center(child: CircularProgressIndicator())
                         : data == null
-                            ? const Center(child: Text('스티커가 삭제되었습니다'))
-                            : _todoList(data),
+                        ? const Center(child: Text('스티커가 삭제되었습니다'))
+                        : _todoList(data),
                   ),
               ],
             ),
@@ -314,10 +323,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
               tooltip: '색상 / 투명도',
               iconSize: 18,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(
-                width: 40,
-                height: 40,
-              ),
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.palette_outlined, color: Colors.black54),
               onPressed: () => _showStyle(colorIndex, opacity),
@@ -326,10 +332,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
               tooltip: _pinned ? '항상 위 해제' : '항상 위 고정',
               iconSize: 18,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(
-                width: 40,
-                height: 40,
-              ),
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 _pinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -341,10 +344,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
               tooltip: _collapsed ? '펴기' : '접기',
               iconSize: 18,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(
-                width: 40,
-                height: 40,
-              ),
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 _collapsed ? Icons.unfold_more : Icons.unfold_less,
@@ -356,10 +356,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
               tooltip: '닫기',
               iconSize: 18,
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(
-                width: 40,
-                height: 40,
-              ),
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close, color: Colors.black54),
               onPressed: windowManager.close,

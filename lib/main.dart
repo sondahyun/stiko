@@ -8,15 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app.dart';
+import 'core/platform_utils.dart';
+import 'features/sticky/application/sticky_window.dart';
 import 'features/sticky/window_bootstrap.dart';
 import 'features/sticky_window/sticky_window_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // A sticky opened in its own floating window (desktop multi-window).
   if (args.isNotEmpty && args.first == 'multi_window') {
@@ -68,5 +68,12 @@ Future<void> main(List<String> args) async {
   }
 
   await initStickyWindow();
+  if (isDesktop) {
+    final WindowController mainWindow =
+        await WindowController.fromCurrentEngine();
+    await mainWindow.setWindowMethodHandler(
+      StickyWindowPositionStore.handleMainWindowMethod,
+    );
+  }
   runApp(const ProviderScope(child: StikoApp()));
 }
