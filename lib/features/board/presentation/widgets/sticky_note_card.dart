@@ -385,6 +385,7 @@ class _TodoLineState extends ConsumerState<TodoLine> {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Checkbox(
           value: widget.todo.isDone,
@@ -400,6 +401,7 @@ class _TodoLineState extends ConsumerState<TodoLine> {
           child: TextField(
             controller: _controller,
             focusNode: _focus,
+            maxLines: null,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _commit(),
             style: TextStyle(

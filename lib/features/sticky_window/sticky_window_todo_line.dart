@@ -93,6 +93,7 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Checkbox(
           value: widget.todo.isDone,
@@ -108,6 +109,7 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
             key: ValueKey<String>('sticky-todo-editor-${widget.todo.id}'),
             controller: _controller,
             focusNode: _focus,
+            maxLines: null,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => unawaited(_commit()),
             style: TextStyle(

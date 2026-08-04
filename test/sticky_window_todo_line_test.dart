@@ -71,4 +71,38 @@ void main() {
 
     expect(deletes, 1);
   });
+
+  testWidgets('긴 할 일은 행 높이가 늘어나며 다음 줄로 자동 줄바꿈한다', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 260,
+              child: StickyWindowTodoLine(
+                todo: todo(
+                  content: 'chocopick에 rag 구현 작업을 추가하고 다음 단계까지 이어서 확인하기',
+                ),
+                onToggle: (_) async {},
+                onEdit: (_) async {},
+                onDelete: () async {},
+                dragHandle: const SizedBox(width: 32, height: 40),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final Finder editor = find.byKey(
+      const ValueKey<String>('sticky-todo-editor-todo-1'),
+    );
+    final TextField field = tester.widget<TextField>(editor);
+
+    expect(field.maxLines, isNull);
+    expect(field.textInputAction, TextInputAction.done);
+    expect(tester.getSize(editor).height, greaterThan(48));
+  });
 }
