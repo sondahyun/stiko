@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,8 +14,6 @@ import '../../../../data/sticky_repository.dart';
 import '../../../auth/application/auth_providers.dart';
 import '../../application/board_providers.dart';
 
-/// Tracks which sticky is shown in which window so duplicates never open.
-final Map<String, int> _openStickyWindows = <String, int>{};
 final Set<String> _openingStickies = <String>{};
 
 /// Stickies mid-navigation on mobile, so a rapid double tap does not push the
@@ -45,31 +42,55 @@ Future<void> openStickyWindow(WidgetRef ref, String stickyId) async {
   if (_openingStickies.contains(stickyId)) return;
   _openingStickies.add(stickyId);
   try {
-    final List<int> openIds = await DesktopMultiWindow.getAllSubWindowIds();
-    final int? existing = _openStickyWindows[stickyId];
-    if (existing != null && openIds.contains(existing)) {
-      await WindowController.fromWindowId(existing).show();
+    final List<WindowController> windows = await WindowController.getAll();
+    WindowController? existing;
+    int stickyWindowCount = 0;
+    for (final WindowController window in windows) {
+      final String? openStickyId = _stickyIdFromArguments(window.arguments);
+      if (openStickyId != null) stickyWindowCount++;
+      if (openStickyId == stickyId) existing = window;
+    }
+    if (existing != null) {
+      await existing.show();
+      await existing.invokeMethod<void>('window_focus');
       return;
     }
     final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
-    final WindowController window = await DesktopMultiWindow.createWindow(
-      jsonEncode(<String, String>{'stickyId': stickyId, 'uid': uid}),
-    );
-    _openStickyWindows[stickyId] = window.windowId;
     const Size winSize = Size(300, 360);
-    await window.setFrame(await _stickyWindowFrame(winSize, openIds.length));
-    await window.setTitle('stiko');
-    await window.show();
+    final Rect frame = await _stickyWindowFrame(winSize, stickyWindowCount);
+    await WindowController.create(
+      WindowConfiguration(
+        hiddenAtLaunch: true,
+        arguments: jsonEncode(<String, Object>{
+          'stickyId': stickyId,
+          'uid': uid,
+          'left': frame.left,
+          'top': frame.top,
+          'width': frame.width,
+          'height': frame.height,
+        }),
+      ),
+    );
   } finally {
     _openingStickies.remove(stickyId);
+  }
+}
+
+String? _stickyIdFromArguments(String arguments) {
+  if (arguments.isEmpty) return null;
+  try {
+    final Object? value = jsonDecode(arguments);
+    if (value is! Map<String, dynamic>) return null;
+    final Object? stickyId = value['stickyId'];
+    return stickyId is String ? stickyId : null;
+  } on FormatException {
+    return null;
   }
 }
 
 /// Places a new sticky window near the top-right of the primary display, with a
 /// small cascade so multiple windows stay visible instead of stacking exactly.
 ///
-/// macOS positions windows from a bottom-left origin (Cocoa), so a larger `top`
-/// sits higher on screen; Windows and Linux use a top-left origin.
 Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
   const double margin = 24;
   const double step = 30;
@@ -78,9 +99,7 @@ Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
     final Display display = await screenRetriever.getPrimaryDisplay();
     final Size screen = display.size;
     final double left = screen.width - size.width - margin - cascade;
-    final double top = defaultTargetPlatform == TargetPlatform.macOS
-        ? screen.height - size.height - 44 - margin - cascade
-        : margin + cascade;
+    final double top = margin + cascade;
     return Offset(left < 0 ? margin : left, top < 0 ? margin : top) & size;
   } catch (_) {
     return const Offset(500, 120) & size;

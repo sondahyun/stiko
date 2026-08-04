@@ -1,4 +1,3 @@
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
@@ -12,12 +11,10 @@ import '../../data/local/database.dart' show StickyWithTodos, Todo;
 class StickyWindowRoot extends StatelessWidget {
   const StickyWindowRoot({
     super.key,
-    required this.windowId,
     required this.stickyId,
     required this.uid,
   });
 
-  final int windowId;
   final String stickyId;
   final String uid;
 
@@ -28,7 +25,6 @@ class StickyWindowRoot extends StatelessWidget {
       theme: StikoTheme.light(),
       darkTheme: StikoTheme.dark(),
       home: StickyWindowScreen(
-        windowId: windowId,
         stickyId: stickyId,
         uid: uid,
       ),
@@ -41,12 +37,10 @@ class StickyWindowRoot extends StatelessWidget {
 class StickyWindowScreen extends StatefulWidget {
   const StickyWindowScreen({
     super.key,
-    required this.windowId,
     required this.stickyId,
     required this.uid,
   });
 
-  final int windowId;
   final String stickyId;
   final String uid;
 
@@ -304,7 +298,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen> {
               iconSize: 18,
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close, color: Colors.black54),
-              onPressed: () => WindowController.fromWindowId(widget.windowId).close(),
+              onPressed: windowManager.close,
             ),
           ],
         ),
