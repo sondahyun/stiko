@@ -1,5 +1,6 @@
 package io.github.sondahyun.stiko
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.text.Spannable
@@ -12,11 +13,18 @@ import org.json.JSONArray
 /** Backs the scrollable list inside the home widget. */
 class StikoWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory =
-        StikoRemoteViewsFactory(applicationContext)
+        StikoRemoteViewsFactory(
+            applicationContext,
+            intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID,
+            ),
+        )
 }
 
 class StikoRemoteViewsFactory(
     private val context: Context,
+    private val widgetId: Int,
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var items = JSONArray()
@@ -27,7 +35,23 @@ class StikoRemoteViewsFactory(
         val prefs = context.getSharedPreferences(
             StikoWidgetProvider.PREFS, Context.MODE_PRIVATE
         )
-        items = JSONArray(prefs.getString("todos", "[]") ?: "[]")
+        val stickyId = prefs.getString("widget_sticker_$widgetId", "") ?: ""
+        if (stickyId.isEmpty()) {
+            // No sticker chosen for this widget: show every todo.
+            items = JSONArray(prefs.getString("todos", "[]") ?: "[]")
+        } else {
+            // Show only the chosen sticker's todos.
+            var found = JSONArray()
+            val stickers = JSONArray(prefs.getString("stickers", "[]") ?: "[]")
+            for (i in 0 until stickers.length()) {
+                val s = stickers.getJSONObject(i)
+                if (s.optString("id") == stickyId) {
+                    found = s.optJSONArray("todos") ?: JSONArray()
+                    break
+                }
+            }
+            items = found
+        }
     }
 
     override fun onDestroy() {
