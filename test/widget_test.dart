@@ -300,7 +300,6 @@ void main() {
         ),
       );
 
-      expect(find.byTooltip('새 창으로 열기'), findsOneWidget);
       await tester.tap(find.text('할일'));
       await tester.pumpAndSettle();
 

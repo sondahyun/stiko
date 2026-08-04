@@ -62,6 +62,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
   final FocusNode _addFocus = FocusNode();
 
   static const double _barHeight = 44;
+  static const Size _expandedMinimumSize = Size(260, 120);
   bool _collapsed = false;
   bool _pinned = false;
   bool _resizing = false;
@@ -123,13 +124,27 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
     if (_resizing) return;
     _resizing = true;
     try {
+      final view = View.of(context);
+      final double clientHeight =
+          view.physicalSize.height / view.devicePixelRatio;
       final Size size = await windowManager.getSize();
       if (!_collapsed) {
         if (size.height > _barHeight + 20) _expandedHeight = size.height;
-        await windowManager.setSize(Size(size.width, _barHeight));
+        final double frameHeight = (size.height - clientHeight)
+            .clamp(0, 32)
+            .toDouble();
+        final double collapsedHeight = _barHeight + frameHeight;
+        try {
+          await windowManager.setMinimumSize(Size(260, collapsedHeight));
+          await windowManager.setSize(Size(size.width, collapsedHeight));
+        } catch (_) {
+          await windowManager.setMinimumSize(_expandedMinimumSize);
+          rethrow;
+        }
         if (mounted) setState(() => _collapsed = true);
       } else {
         await windowManager.setSize(Size(size.width, _expandedHeight));
+        await windowManager.setMinimumSize(_expandedMinimumSize);
         if (mounted) setState(() => _collapsed = false);
       }
     } finally {
@@ -298,6 +313,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
             IconButton(
               tooltip: '색상 / 투명도',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(
+                width: 40,
+                height: 40,
+              ),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.palette_outlined, color: Colors.black54),
               onPressed: () => _showStyle(colorIndex, opacity),
@@ -305,6 +325,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
             IconButton(
               tooltip: _pinned ? '항상 위 해제' : '항상 위 고정',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(
+                width: 40,
+                height: 40,
+              ),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 _pinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -315,6 +340,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
             IconButton(
               tooltip: _collapsed ? '펴기' : '접기',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(
+                width: 40,
+                height: 40,
+              ),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 _collapsed ? Icons.unfold_more : Icons.unfold_less,
@@ -325,6 +355,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
             IconButton(
               tooltip: '닫기',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(
+                width: 40,
+                height: 40,
+              ),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close, color: Colors.black54),
               onPressed: windowManager.close,
