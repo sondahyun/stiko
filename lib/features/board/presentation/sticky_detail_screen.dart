@@ -79,7 +79,7 @@ class StickyDetailScreen extends ConsumerWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(8, 8, 12, 24),
             children: <Widget>[
-              for (final Todo todo in data.todos)
+              for (final Todo todo in completedLast(data.todos))
                 TodoLine(key: ValueKey<String>(todo.id), todo: todo),
               AddTodoLine(stickyId: sticky.id),
             ],

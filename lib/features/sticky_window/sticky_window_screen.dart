@@ -8,7 +8,8 @@ import '../../app/theme.dart';
 import '../../core/app_zoom.dart';
 import '../../core/title_dialog.dart';
 import '../../data/firestore_sticky_repository.dart';
-import '../../data/local/database.dart' show StickyWithTodos, Todo;
+import '../../data/local/database.dart'
+    show StickyWithTodos, Todo, completedLast;
 import '../sticky/application/sticky_window.dart';
 
 /// Root widget of a standalone sticky window (one OS window per sticky).
@@ -371,7 +372,7 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(4, 4, 12, 12),
       children: <Widget>[
-        for (final Todo t in data.todos)
+        for (final Todo t in completedLast(data.todos))
           Row(
             children: <Widget>[
               Checkbox(

@@ -209,14 +209,15 @@ class StickyTitleRow extends ConsumerWidget {
       data.sticky.colorIndex,
       data.sticky.opacity,
     );
+    final List<Todo> ordered = completedLast(data.todos);
     final bool hasTitle = data.sticky.title.trim().isNotEmpty;
     final String label = hasTitle
         ? data.sticky.title
-        : (data.todos.isNotEmpty ? data.todos.first.content : '새 스티커');
+        : (ordered.isNotEmpty ? ordered.first.content : '새 스티커');
     // Preview one to-do under the label; skip the first if it became the label.
     final List<Todo> previewTodos = hasTitle
-        ? data.todos
-        : (data.todos.length > 1 ? data.todos.sublist(1) : <Todo>[]);
+        ? ordered
+        : (ordered.length > 1 ? ordered.sublist(1) : <Todo>[]);
     final String? previewLine = previewTodos.isNotEmpty
         ? previewTodos.first.content
         : null;

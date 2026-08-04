@@ -40,6 +40,13 @@ class StickyWithTodos {
   final List<Todo> todos;
 }
 
+/// Orders todos with incomplete ones first and completed ones sunk to the
+/// bottom, matching how the widget shows them. Each group keeps its saved order.
+List<Todo> completedLast(List<Todo> todos) => <Todo>[
+      ...todos.where((Todo t) => !t.isDone),
+      ...todos.where((Todo t) => t.isDone),
+    ];
+
 @DriftDatabase(tables: [Stickies, Todos])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor])
