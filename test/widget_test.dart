@@ -59,6 +59,7 @@ class FakeStickyRepository implements StickyRepository {
 
   final List<StickyWithTodos> _board;
   final List<(String id, bool isDone)> toggled = <(String, bool)>[];
+  final List<List<String>> stickyOrders = <List<String>>[];
 
   @override
   Stream<List<StickyWithTodos>> watchBoard() =>
@@ -95,7 +96,9 @@ class FakeStickyRepository implements StickyRepository {
   Future<void> setStickyTitle(String stickyId, String title) async {}
 
   @override
-  Future<void> reorderStickies(List<Sticky> ordered) async {}
+  Future<void> reorderStickies(List<Sticky> ordered) async {
+    stickyOrders.add(<String>[for (final Sticky sticky in ordered) sticky.id]);
+  }
 
   @override
   Future<void> reorderTodos(List<Todo> ordered) async {}
@@ -246,6 +249,32 @@ void main() {
 
     expect(find.text('스티커가 없습니다'), findsOneWidget);
   });
+
+  testWidgets(
+    '데스크톱 스티커 목록을 손잡이로 드래그해 순서를 저장한다',
+    (tester) async {
+      final FakeStickyRepository repo = FakeStickyRepository(<StickyWithTodos>[
+        StickyWithTodos(_sticky(id: 's1', title: '첫 번째'), const <Todo>[]),
+        StickyWithTodos(_sticky(id: 's2', title: '두 번째'), const <Todo>[]),
+        StickyWithTodos(_sticky(id: 's3', title: '세 번째'), const <Todo>[]),
+      ]);
+      await tester.pumpWidget(bootstrap(repo));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('sticky-drag-s1')),
+        findsOneWidget,
+      );
+      await tester.drag(
+        find.byKey(const ValueKey<String>('sticky-drag-s1')),
+        const Offset(0, 180),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repo.stickyOrders.last, <String>['s2', 's1', 's3']);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   testWidgets(
     '데스크톱에서 목록을 누르면 스티커 새 창을 연다',

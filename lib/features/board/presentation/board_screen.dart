@@ -217,6 +217,36 @@ class _BoardBodyState extends ConsumerState<_BoardBody> {
           },
           itemBuilder: (BuildContext context, int index) {
             final StickyWithTodos item = items[index];
+            if (isDesktop) {
+              return Padding(
+                key: ValueKey<String>('sticky-${item.sticky.id}'),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: StickyTitleRow(
+                  data: item,
+                  dragHandle: Tooltip(
+                    message: '순서 이동',
+                    child: ReorderableDragStartListener(
+                      key: ValueKey<String>('sticky-drag-${item.sticky.id}'),
+                      index: index,
+                      child: const MouseRegion(
+                        cursor: SystemMouseCursors.grab,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 10,
+                          ),
+                          child: Icon(
+                            Icons.drag_indicator,
+                            size: 18,
+                            color: Colors.black38,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
             return ReorderableDelayedDragStartListener(
               key: ValueKey<String>('sticky-${item.sticky.id}'),
               index: index,

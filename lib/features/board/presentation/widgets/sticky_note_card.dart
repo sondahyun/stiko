@@ -197,9 +197,10 @@ Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
 /// Compact list row: shows the sticky's label (title, or its first to-do) and
 /// progress. Tapping opens the sticky (a window on desktop, a page on mobile).
 class StickyTitleRow extends ConsumerWidget {
-  const StickyTitleRow({super.key, required this.data});
+  const StickyTitleRow({super.key, required this.data, this.dragHandle});
 
   final StickyWithTodos data;
+  final Widget? dragHandle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -279,6 +280,7 @@ class StickyTitleRow extends ConsumerWidget {
                   ],
                 ),
               ),
+              ?dragHandle,
               IconButton(
                 tooltip: '스티커 삭제',
                 iconSize: 18,
