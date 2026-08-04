@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../core/platform_utils.dart';
 import '../../../core/title_dialog.dart';
 import '../../../data/local/database.dart';
@@ -66,7 +68,16 @@ class _MobileBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('stiko')),
+      appBar: AppBar(
+        title: const Text('stiko'),
+        actions: <Widget>[
+          IconButton(
+            tooltip: '설정',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => context.push(StikoRoutes.settings),
+          ),
+        ],
+      ),
       body: const _BoardBody(),
       floatingActionButton: const _AddStickyButton(),
     );

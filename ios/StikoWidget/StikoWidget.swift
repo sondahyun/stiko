@@ -137,11 +137,16 @@ struct StikoWidgetEntryView: View {
 
   private var limit: Int {
     switch family {
-    case .systemMedium: return 6
+    case .systemSmall: return 4
+    case .systemMedium: return 5
+    case .systemLarge: return 12
     case .accessoryRectangular: return 2
     default: return 3
     }
   }
+
+  /// How many todos are hidden beyond what this size can show.
+  private var overflow: Int { max(0, entry.todos.count - limit) }
 
   var body: some View {
     switch family {
@@ -155,7 +160,7 @@ struct StikoWidgetEntryView: View {
       }
 
     default:
-      VStack(alignment: .leading, spacing: 5) {
+      VStack(alignment: .leading, spacing: 4) {
         if entry.todos.isEmpty {
           Text("할 일 없음")
             .font(.footnote)
@@ -163,6 +168,13 @@ struct StikoWidgetEntryView: View {
         } else {
           ForEach(entry.todos.prefix(limit)) { todo in
             TodoRow(todo: todo)
+          }
+          // iOS widgets can't scroll, so surface how many more remain; tapping
+          // the widget opens the app to see the full list.
+          if overflow > 0 {
+            Text("+\(overflow)개 더")
+              .font(.caption2)
+              .foregroundStyle(.secondary)
           }
         }
         Spacer(minLength: 0)
@@ -191,6 +203,7 @@ struct StikoWidget: Widget {
       .accessoryRectangular,
       .systemSmall,
       .systemMedium,
+      .systemLarge,
     ])
   }
 }
