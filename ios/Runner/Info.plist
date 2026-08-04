@@ -37,6 +37,10 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Widget taps are handled via home_widget's widgetClicked stream, so keep
+	     Flutter's own router from also trying to route the stiko:// URL. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
