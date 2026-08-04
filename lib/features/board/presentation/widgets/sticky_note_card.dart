@@ -278,14 +278,6 @@ class StickyTitleRow extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (isDesktop)
-                IconButton(
-                  tooltip: '새 창으로 열기',
-                  iconSize: 18,
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.open_in_new, color: Colors.black54),
-                  onPressed: () => openSticky(context, ref, data.sticky.id),
-                ),
               IconButton(
                 tooltip: '스티커 삭제',
                 iconSize: 18,
