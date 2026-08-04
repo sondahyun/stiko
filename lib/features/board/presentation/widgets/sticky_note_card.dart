@@ -22,9 +22,13 @@ final Set<String> _navigatingStickies = <String>{};
 
 /// Opens a sticky: on desktop in its own floating window, on mobile by
 /// navigating to a full-screen detail page.
-void openSticky(BuildContext context, WidgetRef ref, String stickyId) {
+Future<void> openSticky(
+  BuildContext context,
+  WidgetRef ref,
+  String stickyId,
+) async {
   if (isDesktop) {
-    openStickyWindow(ref, stickyId);
+    await openStickyWindow(ref, stickyId);
     return;
   }
   if (_navigatingStickies.contains(stickyId)) return;
@@ -33,7 +37,7 @@ void openSticky(BuildContext context, WidgetRef ref, String stickyId) {
     const Duration(milliseconds: 600),
     () => _navigatingStickies.remove(stickyId),
   );
-  context.push(StikoRoutes.stickyPath(stickyId));
+  await context.push(StikoRoutes.stickyPath(stickyId));
 }
 
 /// Opens the given sticky in its own floating desktop window. If one is already
@@ -117,8 +121,10 @@ class StickyTitleRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Composite over white so lower opacity reads as a lighter card rather than
     // a black hole on mobile, where nothing sits behind the row.
-    final Color surface =
-        StickyColors.surface(data.sticky.colorIndex, data.sticky.opacity);
+    final Color surface = StickyColors.surface(
+      data.sticky.colorIndex,
+      data.sticky.opacity,
+    );
     final bool hasTitle = data.sticky.title.trim().isNotEmpty;
     final String label = hasTitle
         ? data.sticky.title
@@ -127,8 +133,9 @@ class StickyTitleRow extends ConsumerWidget {
     final List<Todo> previewTodos = hasTitle
         ? data.todos
         : (data.todos.length > 1 ? data.todos.sublist(1) : <Todo>[]);
-    final String? previewLine =
-        previewTodos.isNotEmpty ? previewTodos.first.content : null;
+    final String? previewLine = previewTodos.isNotEmpty
+        ? previewTodos.first.content
+        : null;
     final bool hasMore = previewTodos.length > 1;
 
     return Material(
@@ -139,6 +146,7 @@ class StickyTitleRow extends ConsumerWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
+        key: ValueKey<String>('sticky-card-${data.sticky.id}'),
         onTap: () => openSticky(context, ref, data.sticky.id),
         // Opening a new OS window steals focus mid-tap, which can otherwise
         // leave the hover/press overlay stuck on the row. Keep it transparent.
@@ -192,15 +200,16 @@ class StickyTitleRow extends ConsumerWidget {
                   iconSize: 18,
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.open_in_new, color: Colors.black54),
-                  onPressed: () => openStickyWindow(ref, data.sticky.id),
+                  onPressed: () => openSticky(context, ref, data.sticky.id),
                 ),
               IconButton(
                 tooltip: '스티커 삭제',
                 iconSize: 18,
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.delete_outline, color: Colors.black54),
-                onPressed: () =>
-                    ref.read(stickyRepositoryProvider).deleteSticky(data.sticky.id),
+                onPressed: () => ref
+                    .read(stickyRepositoryProvider)
+                    .deleteSticky(data.sticky.id),
               ),
             ],
           ),
@@ -260,11 +269,9 @@ class _TodoLineState extends ConsumerState<TodoLine> {
       children: <Widget>[
         Checkbox(
           value: widget.todo.isDone,
-          onChanged: (bool? v) =>
-              ref.read(stickyRepositoryProvider).toggleTodo(
-                    widget.todo.id,
-                    v ?? false,
-                  ),
+          onChanged: (bool? v) => ref
+              .read(stickyRepositoryProvider)
+              .toggleTodo(widget.todo.id, v ?? false),
           visualDensity: VisualDensity.compact,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           side: const BorderSide(color: Colors.black45),
@@ -278,8 +285,9 @@ class _TodoLineState extends ConsumerState<TodoLine> {
             onSubmitted: (_) => _commit(),
             style: TextStyle(
               color: Colors.black87,
-              decoration:
-                  widget.todo.isDone ? TextDecoration.lineThrough : null,
+              decoration: widget.todo.isDone
+                  ? TextDecoration.lineThrough
+                  : null,
               decorationColor: Colors.black45,
             ),
             decoration: const InputDecoration(
@@ -454,14 +462,18 @@ class _StickyStyleSheetState extends ConsumerState<_StickyStyleSheet> {
                         color: StickyColors.at(i),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color:
-                              i == _colorIndex ? Colors.black87 : Colors.black26,
+                          color: i == _colorIndex
+                              ? Colors.black87
+                              : Colors.black26,
                           width: i == _colorIndex ? 2.5 : 1,
                         ),
                       ),
                       child: i == _colorIndex
-                          ? const Icon(Icons.check,
-                              size: 18, color: Colors.black87)
+                          ? const Icon(
+                              Icons.check,
+                              size: 18,
+                              color: Colors.black87,
+                            )
                           : null,
                     ),
                   ),
@@ -470,11 +482,15 @@ class _StickyStyleSheetState extends ConsumerState<_StickyStyleSheet> {
             const SizedBox(height: 20),
             Row(
               children: <Widget>[
-                const Text('투명도',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  '투명도',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const Spacer(),
-                Text('${(_opacity * 100).round()}%',
-                    style: const TextStyle(color: Colors.black54)),
+                Text(
+                  '${(_opacity * 100).round()}%',
+                  style: const TextStyle(color: Colors.black54),
+                ),
               ],
             ),
             Slider(

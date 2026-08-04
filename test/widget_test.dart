@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stiko/app/app.dart';
@@ -11,6 +12,7 @@ import 'package:stiko/features/auth/application/auth_providers.dart';
 import 'package:stiko/features/auth/application/auth_service.dart';
 import 'package:stiko/features/board/application/board_providers.dart';
 import 'package:stiko/features/board/presentation/sticky_detail_screen.dart';
+import 'package:stiko/features/board/presentation/widgets/sticky_note_card.dart';
 
 Sticky _sticky({
   String id = 's1',
@@ -199,6 +201,66 @@ void main() {
 
     expect(find.text('스티커가 없습니다'), findsOneWidget);
   });
+
+  testWidgets(
+    '데스크톱에서 목록을 누르면 스티커 새 창을 연다',
+    (tester) async {
+      const MethodChannel channel = MethodChannel(
+        'mixin.one/desktop_multi_window',
+      );
+      const MethodChannel screenChannel = MethodChannel(
+        'dev.leanflutter.plugins/screen_retriever',
+      );
+      final List<MethodCall> calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            calls.add(call);
+            return switch (call.method) {
+              'getAllWindows' => <Map<String, Object?>>[],
+              'createWindow' => 'test-window',
+              _ => null,
+            };
+          });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(screenChannel, (MethodCall call) async {
+            if (call.method != 'getPrimaryDisplay') return null;
+            return <String, Object>{
+              'id': 'test-display',
+              'size': <String, double>{'width': 1920, 'height': 1080},
+            };
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(screenChannel, null);
+      });
+
+      final StickyWithTodos item = StickyWithTodos(_sticky(title: '할일'), <Todo>[
+        _todo(content: '목록 클릭 테스트'),
+      ]);
+      await tester.pumpWidget(
+        bootstrapScreen(
+          StickyTitleRow(data: item),
+          FakeStickyRepository(<StickyWithTodos>[item]),
+        ),
+      );
+
+      expect(find.byTooltip('새 창으로 열기'), findsOneWidget);
+      await tester.tap(find.text('할일'));
+      await tester.pumpAndSettle();
+
+      final List<MethodCall> createCalls = calls
+          .where((MethodCall call) => call.method == 'createWindow')
+          .toList();
+      expect(createCalls, hasLength(1));
+      expect(
+        createCalls.single.arguments.toString(),
+        contains('"stickyId":"s1"'),
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   testWidgets('스티커 상세에서 할 일이 표시된다', (tester) async {
     final List<StickyWithTodos> board = <StickyWithTodos>[
