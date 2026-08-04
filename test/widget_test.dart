@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -223,10 +224,19 @@ void main() {
           });
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(screenChannel, (MethodCall call) async {
-            if (call.method != 'getPrimaryDisplay') return null;
-            return <String, Object>{
+            const Map<String, Object> display = <String, Object>{
               'id': 'test-display',
               'size': <String, double>{'width': 1920, 'height': 1080},
+              'visiblePosition': <String, double>{'dx': 0, 'dy': 0},
+              'visibleSize': <String, double>{'width': 1920, 'height': 1040},
+            };
+            return switch (call.method) {
+              'getCursorScreenPoint' => <String, double>{'dx': 400, 'dy': 300},
+              'getAllDisplays' => <String, Object>{
+                'displays': <Map<String, Object>>[display],
+              },
+              'getPrimaryDisplay' => display,
+              _ => null,
             };
           });
       addTearDown(() {
@@ -254,10 +264,15 @@ void main() {
           .where((MethodCall call) => call.method == 'createWindow')
           .toList();
       expect(createCalls, hasLength(1));
-      expect(
-        createCalls.single.arguments.toString(),
-        contains('"stickyId":"s1"'),
-      );
+      final Map<Object?, Object?> configuration =
+          createCalls.single.arguments as Map<Object?, Object?>;
+      final Map<String, dynamic> windowArguments =
+          jsonDecode(configuration['arguments']! as String)
+              as Map<String, dynamic>;
+      expect(windowArguments['stickyId'], 's1');
+      expect(windowArguments['uid'], 'u');
+      expect(windowArguments['left'], 424);
+      expect(windowArguments['top'], 256);
     },
     variant: TargetPlatformVariant.only(TargetPlatform.windows),
   );

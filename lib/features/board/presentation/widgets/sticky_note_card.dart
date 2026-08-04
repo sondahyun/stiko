@@ -12,6 +12,7 @@ import '../../../../core/platform_utils.dart';
 import '../../../../data/local/database.dart';
 import '../../../../data/sticky_repository.dart';
 import '../../../auth/application/auth_providers.dart';
+import '../../../auth/application/auth_service.dart';
 import '../../application/board_providers.dart';
 
 final Set<String> _openingStickies = <String>{};
@@ -59,7 +60,11 @@ Future<void> openStickyWindow(WidgetRef ref, String stickyId) async {
       await existing.invokeMethod<void>('window_focus');
       return;
     }
-    final String uid = ref.read(authStateProvider).valueOrNull?.uid ?? '';
+    final AppUser? user =
+        ref.read(authStateProvider).valueOrNull ??
+        ref.read(authServiceProvider).currentUser;
+    if (user == null || user.uid.isEmpty) return;
+    final String uid = user.uid;
     const Size winSize = Size(300, 360);
     final Rect frame = await _stickyWindowFrame(winSize, stickyWindowCount);
     await WindowController.create(
@@ -92,21 +97,52 @@ String? _stickyIdFromArguments(String arguments) {
   }
 }
 
-/// Places a new sticky window near the top-right of the primary display, with a
-/// small cascade so multiple windows stay visible instead of stacking exactly.
-///
+/// Places a new sticky window close to the clicked card and clamps it to the
+/// current display's work area. A small cascade keeps multiple windows visible.
 Future<Rect> _stickyWindowFrame(Size size, int cascadeIndex) async {
   const double margin = 24;
   const double step = 30;
   final double cascade = (cascadeIndex % 5) * step;
   try {
-    final Display display = await screenRetriever.getPrimaryDisplay();
-    final Size screen = display.size;
-    final double left = screen.width - size.width - margin - cascade;
-    final double top = margin + cascade;
-    return Offset(left < 0 ? margin : left, top < 0 ? margin : top) & size;
+    final Offset cursor = await screenRetriever.getCursorScreenPoint();
+    List<Display> displays;
+    try {
+      displays = await screenRetriever.getAllDisplays();
+    } catch (_) {
+      displays = <Display>[await screenRetriever.getPrimaryDisplay()];
+    }
+
+    Display? display;
+    for (final Display candidate in displays) {
+      final Offset origin = candidate.visiblePosition ?? Offset.zero;
+      final Size workArea = candidate.visibleSize ?? candidate.size;
+      if ((origin & workArea).contains(cursor)) {
+        display = candidate;
+        break;
+      }
+    }
+    display ??= await screenRetriever.getPrimaryDisplay();
+
+    final Offset origin = display.visiblePosition ?? Offset.zero;
+    final Size workArea = display.visibleSize ?? display.size;
+    final double minLeft = origin.dx + margin;
+    final double minTop = origin.dy + margin;
+    final double maxLeft = origin.dx + workArea.width - size.width - margin;
+    final double maxTop = origin.dy + workArea.height - size.height - margin;
+
+    double left = cursor.dx + margin + cascade;
+    if (left > maxLeft) {
+      left = cursor.dx - size.width - margin - cascade;
+    }
+    final double top = cursor.dy - 44 + cascade;
+
+    return Offset(
+          left.clamp(minLeft, maxLeft < minLeft ? minLeft : maxLeft),
+          top.clamp(minTop, maxTop < minTop ? minTop : maxTop),
+        ) &
+        size;
   } catch (_) {
-    return const Offset(500, 120) & size;
+    return Offset(500 + cascade, 120 + cascade) & size;
   }
 }
 
