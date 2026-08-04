@@ -16,15 +16,18 @@ class StickyToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final StickyWindowState windowState =
-        ref.watch(stickyWindowControllerProvider);
-    final StickyWindowController controller =
-        ref.read(stickyWindowControllerProvider.notifier);
+    final StickyWindowState windowState = ref.watch(
+      stickyWindowControllerProvider,
+    );
+    final StickyWindowController controller = ref.read(
+      stickyWindowControllerProvider.notifier,
+    );
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     // Leave room for the macOS traffic-light buttons on the left.
-    final double leftInset =
-        defaultTargetPlatform == TargetPlatform.macOS ? 88 : 12;
+    final double leftInset = defaultTargetPlatform == TargetPlatform.macOS
+        ? 88
+        : 12;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -47,6 +50,8 @@ class StickyToolbar extends ConsumerWidget {
             IconButton(
               tooltip: '설정',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.settings_outlined),
               onPressed: () => context.push(StikoRoutes.settings),
@@ -54,6 +59,8 @@ class StickyToolbar extends ConsumerWidget {
             IconButton(
               tooltip: windowState.alwaysOnTop ? '항상 위 해제' : '항상 위 고정',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 windowState.alwaysOnTop
@@ -66,6 +73,8 @@ class StickyToolbar extends ConsumerWidget {
             IconButton(
               tooltip: windowState.collapsed ? '펴기' : '접기',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 windowState.collapsed ? Icons.unfold_more : Icons.unfold_less,
@@ -75,6 +84,8 @@ class StickyToolbar extends ConsumerWidget {
             IconButton(
               tooltip: '닫기',
               iconSize: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close),
               onPressed: () => windowManager.close(),

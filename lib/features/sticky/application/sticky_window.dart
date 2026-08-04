@@ -80,8 +80,10 @@ class StickyWindowState {
 /// Every window_manager call is guarded by [isDesktop] so the controller is a
 /// harmless no-op on mobile.
 class StickyWindowController extends Notifier<StickyWindowState> {
-  static const double _collapsedHeight = 44;
+  static const double _barHeight = 44;
+  static const Size _expandedMinimumSize = Size(260, 120);
   double _expandedHeight = 460;
+  bool _resizing = false;
 
   @override
   StickyWindowState build() {
@@ -108,21 +110,44 @@ class StickyWindowController extends Notifier<StickyWindowState> {
 
   /// Rolls the window up to just its toolbar, or restores it.
   Future<void> toggleCollapsed() async {
-    final bool next = !state.collapsed;
-    if (isDesktop) {
-      final Size size = await windowManager.getSize();
-      if (next) {
-        _expandedHeight = size.height;
-        await windowManager.setSize(Size(size.width, _collapsedHeight));
-      } else {
-        await windowManager.setSize(Size(size.width, _expandedHeight));
+    if (_resizing) return;
+    _resizing = true;
+    try {
+      final bool next = !state.collapsed;
+      if (isDesktop) {
+        final view = WidgetsBinding.instance.platformDispatcher.implicitView;
+        final double? clientHeight = view == null
+            ? null
+            : view.physicalSize.height / view.devicePixelRatio;
+        final Size size = await windowManager.getSize();
+        if (next) {
+          if (size.height > _barHeight + 20) _expandedHeight = size.height;
+          final double frameHeight = clientHeight == null
+              ? 0
+              : (size.height - clientHeight).clamp(0, 32).toDouble();
+          final double collapsedHeight = _barHeight + frameHeight;
+          try {
+            await windowManager.setMinimumSize(
+              Size(_expandedMinimumSize.width, collapsedHeight),
+            );
+            await windowManager.setSize(Size(size.width, collapsedHeight));
+          } catch (_) {
+            await windowManager.setMinimumSize(_expandedMinimumSize);
+            rethrow;
+          }
+        } else {
+          await windowManager.setSize(Size(size.width, _expandedHeight));
+          await windowManager.setMinimumSize(_expandedMinimumSize);
+        }
       }
+      state = state.copyWith(collapsed: next);
+    } finally {
+      _resizing = false;
     }
-    state = state.copyWith(collapsed: next);
   }
 }
 
 final stickyWindowControllerProvider =
     NotifierProvider<StickyWindowController, StickyWindowState>(
-  StickyWindowController.new,
-);
+      StickyWindowController.new,
+    );
