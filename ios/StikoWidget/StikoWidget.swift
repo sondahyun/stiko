@@ -6,8 +6,6 @@ import AppIntents
 private let appGroupId = "group.io.github.sondahyun.stiko"
 private let widgetKind = "StikoWidget"
 private let inkColor = Color(red: 0.43, green: 0.37, blue: 0.09)
-// Tapping the widget body (not a checkbox) opens the app via this scheme.
-private let openURL = URL(string: "stiko://open")
 
 // MARK: - Data
 
@@ -348,7 +346,9 @@ struct StikoWidget: Widget {
     ) { entry in
       StikoWidgetEntryView(entry: entry)
         .containerBackground(.fill.tertiary, for: .widget)
-        .widgetURL(openURL)
+        .widgetURL(entry.key == "all"
+                   ? URL(string: "stiko://board")
+                   : URL(string: "stiko://sticker/\(entry.key)"))
     }
     .configurationDisplayName("stiko 할 일")
     .description("할 일을 보고 눌러서 완료합니다. 길게 눌러 위젯을 편집하면 스티커를 고를 수 있어요.")
