@@ -294,8 +294,11 @@ class _StickyWindowScreenState extends State<StickyWindowScreen>
   ) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
+      // Drag anywhere on the bar to move the window. Deliberately no onDoubleTap:
+      // it competed with the title's single tap (below), delaying rename by the
+      // double-tap timeout and turning an impatient second tap into a collapse.
+      // Collapse stays available through its own toolbar button.
       onPanStart: (_) => windowManager.startDragging(),
-      onDoubleTap: _toggleCollapse,
       child: Container(
         height: _barHeight,
         color: Colors.black.withValues(alpha: 0.06),
