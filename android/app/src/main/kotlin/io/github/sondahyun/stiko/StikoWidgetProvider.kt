@@ -122,6 +122,28 @@ class StikoWidgetProvider : HomeWidgetProvider() {
                 .coerceIn(0, 100)
             views.setInt(R.id.bg, "setImageAlpha", opacity * 255 / 100)
 
+            // Header: when the widget is pinned to a single sticker, show that
+            // sticker's name (its title, else first todo) so a title-only sticker
+            // still displays its note even with no to-dos. "전체" widgets hide it.
+            val stickyId = prefs.getString("widget_sticker_$widgetId", "") ?: ""
+            var title = ""
+            if (stickyId.isNotEmpty()) {
+                val stickers = JSONArray(prefs.getString("stickers", "[]") ?: "[]")
+                for (i in 0 until stickers.length()) {
+                    val s = stickers.getJSONObject(i)
+                    if (s.optString("id") == stickyId) {
+                        title = s.optString("name")
+                        break
+                    }
+                }
+            }
+            if (title.isNotEmpty()) {
+                views.setTextViewText(R.id.title, title)
+                views.setViewVisibility(R.id.title, android.view.View.VISIBLE)
+            } else {
+                views.setViewVisibility(R.id.title, android.view.View.GONE)
+            }
+
             val serviceIntent = Intent(context, StikoWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))

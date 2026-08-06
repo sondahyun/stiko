@@ -21,9 +21,24 @@
         android:paddingTop="14dp"
         android:paddingBottom="14dp">
 
+        <!-- Sticker title header. Shown when the widget is pinned to one sticker,
+             so a title-only sticker (no to-dos) still shows its note. -->
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textColor="#26221A"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:paddingBottom="6dp"
+            android:visibility="gone" />
+
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <ListView
                 android:id="@+id/list"

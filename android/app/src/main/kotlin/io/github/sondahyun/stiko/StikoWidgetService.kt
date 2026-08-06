@@ -3,13 +3,17 @@ package io.github.sondahyun.stiko
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Typeface
 import android.net.Uri
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
+import android.text.style.StyleSpan
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import org.json.JSONArray
+import org.json.JSONObject
 
 /** Backs the scrollable list inside the home widget. */
 class StikoWidgetService : RemoteViewsService() {
@@ -37,22 +41,29 @@ class StikoRemoteViewsFactory(
             StikoWidgetProvider.PREFS, Context.MODE_PRIVATE
         )
         val stickyId = prefs.getString("widget_sticker_$widgetId", "") ?: ""
-        if (stickyId.isEmpty()) {
-            // No sticker chosen for this widget: show every todo.
-            items = JSONArray(prefs.getString("todos", "[]") ?: "[]")
-        } else {
-            // Show only the chosen sticker's todos.
-            var found = JSONArray()
-            val stickers = JSONArray(prefs.getString("stickers", "[]") ?: "[]")
-            for (i in 0 until stickers.length()) {
-                val s = stickers.getJSONObject(i)
-                if (s.optString("id") == stickyId) {
-                    found = s.optJSONArray("todos") ?: JSONArray()
-                    break
-                }
+        val stickers = JSONArray(prefs.getString("stickers", "[]") ?: "[]")
+        val out = JSONArray()
+        for (i in 0 until stickers.length()) {
+            val s = stickers.getJSONObject(i)
+            val id = s.optString("id")
+            // A pinned widget shows only its sticker (its title is in the header);
+            // "전체" shows every sticker, each prefixed with a title row so a
+            // title-only sticker (no to-dos) still appears.
+            if (stickyId.isNotEmpty() && id != stickyId) continue
+            if (stickyId.isEmpty()) {
+                out.put(
+                    JSONObject()
+                        .put("kind", "title")
+                        .put("content", s.optString("name"))
+                        .put("stickyId", id)
+                )
             }
-            items = found
+            val todos = s.optJSONArray("todos") ?: JSONArray()
+            for (j in 0 until todos.length()) {
+                out.put(todos.getJSONObject(j).put("kind", "todo"))
+            }
         }
+        items = out
     }
 
     override fun onDestroy() {
@@ -64,6 +75,29 @@ class StikoRemoteViewsFactory(
     override fun getViewAt(position: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.stiko_widget_row)
         val obj = items.getJSONObject(position)
+
+        // Title row (only in "전체" mode): bold sticker name, no circle, tapping
+        // it opens that sticker in the app.
+        if (obj.optString("kind") == "title") {
+            val name = obj.optString("content").ifEmpty { "새 스티커" }
+            val bold = SpannableString(name)
+            bold.setSpan(
+                StyleSpan(Typeface.BOLD), 0, bold.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            views.setTextViewText(R.id.row_text, bold)
+            views.setTextColor(R.id.row_text, 0xFF26221A.toInt())
+            views.setViewVisibility(R.id.row_circle, View.GONE)
+            val openTitle = Intent().apply {
+                data = Uri.parse("stiko://title/${obj.optString("stickyId")}")
+                putExtra(StikoWidgetProvider.EXTRA_KIND, StikoWidgetProvider.KIND_OPEN)
+                putExtra(StikoWidgetProvider.EXTRA_STICKY, obj.optString("stickyId"))
+            }
+            views.setOnClickFillInIntent(R.id.row_text, openTitle)
+            return views
+        }
+
+        views.setViewVisibility(R.id.row_circle, View.VISIBLE)
         val id = obj.optString("id")
         val stickyId = obj.optString("stickyId")
         val done = obj.optBoolean("done", false)
