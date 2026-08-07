@@ -67,6 +67,16 @@ void main() {
     );
   });
 
+  testWidgets('순서 이동 손잡이와 삭제 아이콘의 높이가 같다', (tester) async {
+    await tester.pumpWidget(subject(<Todo>[todo('a')], (_) async {}));
+
+    final double handleY = tester
+        .getCenter(find.byKey(const ValueKey<String>('sticky-todo-drag-a')))
+        .dy;
+    final double deleteY = tester.getCenter(find.byTooltip('할 일 삭제')).dy;
+    expect(deleteY, moreOrLessEquals(handleY, epsilon: 0.5));
+  });
+
   testWidgets('할 일이 창을 넘쳐도 입력 행은 화면 안에 남는다', (tester) async {
     // Before the fix the add row scrolled away with the list, so a full sticky
     // looked like it had hit a to-do limit.

@@ -130,20 +130,29 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
         // a close one: an X here reads as the window's close button, which sits
         // directly above it in the toolbar.
         if (widget.dragHandle != null) widget.dragHandle!,
-        IconButton(
-          key: ValueKey<String>('sticky-todo-delete-${widget.todo.id}'),
-          tooltip: '할 일 삭제',
-          iconSize: 16,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints.tightFor(width: 28, height: 32),
-          visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.delete_outline, color: Colors.black38),
-          onPressed: () {
-            // Skip the blur-commit: the row is going away, and an empty-text
-            // commit would fire a second delete for the same to-do.
-            _lastCommittedContent = _controller.text.trim();
-            unawaited(widget.onDelete());
-          },
+        Tooltip(
+          message: '할 일 삭제',
+          // Deliberately mirrors the drag handle's geometry (icon 18 inside
+          // 4/10 padding) instead of using IconButton, whose visual density
+          // re-shrinks an explicit box and left the two icons a pixel apart.
+          child: InkWell(
+            key: ValueKey<String>('sticky-todo-delete-${widget.todo.id}'),
+            customBorder: const CircleBorder(),
+            onTap: () {
+              // Skip the blur-commit: the row is going away, and an empty-text
+              // commit would fire a second delete for the same to-do.
+              _lastCommittedContent = _controller.text.trim();
+              unawaited(widget.onDelete());
+            },
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              child: Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: Colors.black38,
+              ),
+            ),
+          ),
         ),
       ],
     );
