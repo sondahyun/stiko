@@ -67,6 +67,37 @@ void main() {
     );
   });
 
+  testWidgets('할 일이 창을 넘쳐도 입력 행은 화면 안에 남는다', (tester) async {
+    // Before the fix the add row scrolled away with the list, so a full sticky
+    // looked like it had hit a to-do limit.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 300,
+            child: StickyWindowTodoList(
+              todos: <Todo>[for (int i = 0; i < 30; i++) todo('todo-$i')],
+              addRow: const SizedBox(
+                key: ValueKey<String>('add-row-body'),
+                height: 40,
+              ),
+              onToggle: (_, _) async {},
+              onEdit: (_, _) async {},
+              onDelete: (_) async {},
+              onReorder: (_) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final Finder addRow = find.byKey(const ValueKey<String>('add-row-body'));
+    expect(addRow, findsOneWidget);
+    expect(tester.getRect(addRow).bottom, lessThanOrEqualTo(300));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('드래그 순서를 저장 콜백에 전달한다', (tester) async {
     List<Todo>? saved;
     await tester.pumpWidget(

@@ -52,6 +52,24 @@ class _StickyWindowTodoListState extends State<StickyWindowTodoList> {
   @override
   Widget build(BuildContext context) {
     final List<Todo> ordered = _reconcile(widget.todos);
+    // The add row is pinned below the scroll view, not appended to it: once the
+    // list outgrew the window it used to scroll out of reach, which looked like
+    // the sticky had hit a to-do limit (there is none).
+    return Column(
+      children: <Widget>[
+        Expanded(child: _list(ordered)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 12, 12),
+          child: KeyedSubtree(
+            key: const ValueKey<String>('sticky-add-todo-row'),
+            child: widget.addRow,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _list(List<Todo> ordered) {
     return CustomScrollView(
       slivers: <Widget>[
         SliverPadding(
@@ -119,15 +137,6 @@ class _StickyWindowTodoListState extends State<StickyWindowTodoList> {
                 ),
               );
             },
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(4, 0, 12, 12),
-          sliver: SliverToBoxAdapter(
-            child: KeyedSubtree(
-              key: const ValueKey<String>('sticky-add-todo-row'),
-              child: widget.addRow,
-            ),
           ),
         ),
       ],

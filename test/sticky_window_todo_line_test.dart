@@ -72,6 +72,39 @@ void main() {
     expect(deletes, 1);
   });
 
+  testWidgets('삭제 버튼을 누르면 항목을 한 번만 삭제한다', (tester) async {
+    int deletes = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: <Widget>[
+              StickyWindowTodoLine(
+                todo: todo(),
+                onToggle: (_) async {},
+                onEdit: (_) async {},
+                onDelete: () async => deletes++,
+              ),
+              const TextField(key: ValueKey<String>('next-field')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Focus the row first: losing focus must not add a second delete.
+    await tester.tap(
+      find.byKey(const ValueKey<String>('sticky-todo-editor-todo-1')),
+    );
+    await tester.pump();
+    await tester.tap(find.byTooltip('할 일 삭제'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey<String>('next-field')));
+    await tester.pump();
+
+    expect(deletes, 1);
+  });
+
   testWidgets('긴 할 일은 행 높이가 늘어나며 다음 줄로 자동 줄바꿈한다', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
