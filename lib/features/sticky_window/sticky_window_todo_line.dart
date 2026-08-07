@@ -126,6 +126,10 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
             ),
           ),
         ),
+        // Handle then delete, matching the board rows. A trash icon rather than
+        // a close one: an X here reads as the window's close button, which sits
+        // directly above it in the toolbar.
+        if (widget.dragHandle != null) widget.dragHandle!,
         IconButton(
           key: ValueKey<String>('sticky-todo-delete-${widget.todo.id}'),
           tooltip: '할 일 삭제',
@@ -133,7 +137,7 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints.tightFor(width: 28, height: 32),
           visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.close, color: Colors.black38),
+          icon: const Icon(Icons.delete_outline, color: Colors.black38),
           onPressed: () {
             // Skip the blur-commit: the row is going away, and an empty-text
             // commit would fire a second delete for the same to-do.
@@ -141,7 +145,6 @@ class _StickyWindowTodoLineState extends State<StickyWindowTodoLine> {
             unawaited(widget.onDelete());
           },
         ),
-        if (widget.dragHandle != null) widget.dragHandle!,
       ],
     );
   }

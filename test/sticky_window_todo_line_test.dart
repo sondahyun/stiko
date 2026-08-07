@@ -105,6 +105,36 @@ void main() {
     expect(deletes, 1);
   });
 
+  testWidgets('삭제 버튼은 드래그 손잡이 오른쪽에 놓인다', (tester) async {
+    // Board rows use [손잡이][삭제]; keep the sticky window consistent.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            child: StickyWindowTodoLine(
+              todo: todo(),
+              onToggle: (_) async {},
+              onEdit: (_) async {},
+              onDelete: () async {},
+              dragHandle: const SizedBox(
+                key: ValueKey<String>('handle'),
+                width: 26,
+                height: 40,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final double handleX = tester
+        .getCenter(find.byKey(const ValueKey<String>('handle')))
+        .dx;
+    final double deleteX = tester.getCenter(find.byTooltip('할 일 삭제')).dx;
+    expect(deleteX, greaterThan(handleX));
+  });
+
   testWidgets('긴 할 일은 행 높이가 늘어나며 다음 줄로 자동 줄바꿈한다', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
